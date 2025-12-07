@@ -1,12 +1,15 @@
-// sf_311_agent/src/services/socrataClient.ts
 import axios from "axios";
 import { configDotenv } from "dotenv";
+import { GeoLocation } from "../utils/interfaces";
 
 configDotenv();
 
-const DATASET_ID = "vw6y-z8j6"; // SF 311 Cases
-const BASE_URL = `https://data.sfgov.org/api/v3/views/${DATASET_ID}/query.json`;
+const SOCRATA_DATASET_ID = "vw6y-z8j6";
+const SOCRATA_BASE_URL = `https://data.sfgov.org/api/v3/views/${SOCRATA_DATASET_ID}/query.json`;
 
+/**
+ * Handles communication with the Socrata Open Data API (SODA)
+ */
 export class SocrataClient {
   private appToken: string;
 
@@ -14,20 +17,20 @@ export class SocrataClient {
     this.appToken = process.env.SF_DATA_APP_TOKEN || "";
     if (!this.appToken) {
       console.warn(
-        "Warning: SF_DATA_APP_TOKEN is missing. Rate limits will be low.",
+        "⚠️ Warning: SF_DATA_APP_TOKEN is missing. Requests will be rate-limited.",
       );
     }
   }
 
   /**
-   * Execute a SoQL Query
+   * Execute a SoQL Query against the SF 311 Dataset
    */
   async executeQuery<T>(soqlQuery: string): Promise<T[]> {
     try {
       console.log(`[SoQL] Executing: ${soqlQuery}`);
 
       const response = await axios.post(
-        BASE_URL,
+        SOCRATA_BASE_URL,
         { query: soqlQuery },
         {
           headers: {
@@ -43,6 +46,39 @@ export class SocrataClient {
         error.response?.data || error.message,
       );
       throw new Error(`Failed to fetch 311 data: ${error.message}`);
+    }
+  }
+}
+
+/**
+ * Handles Geocoding (Address -> Lat/Long)
+ * Uses OpenStreetMap (Nominatim) free API
+ */
+export class GeoClient {
+  async geocode(address: string): Promise<GeoLocation | null> {
+    try {
+      // Append 'San Francisco' to ensure we look in the right city
+      const query = `${address}, San Francisco, CA`;
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
+
+      console.log(`[Geo] Geocoding: ${query}`);
+
+      // Nominatim requires a User-Agent
+      const response = await axios.get(url, {
+        headers: { "User-Agent": "DaemoSFAgent/1.0" },
+      });
+
+      if (response.data && response.data.length > 0) {
+        return {
+          lat: parseFloat(response.data[0].lat),
+          lon: parseFloat(response.data[0].lon),
+          display_name: response.data[0].display_name,
+        };
+      }
+      return null;
+    } catch (error: any) {
+      console.error("Geocoding Error:", error.message);
+      throw new Error("Failed to geocode address.");
     }
   }
 }

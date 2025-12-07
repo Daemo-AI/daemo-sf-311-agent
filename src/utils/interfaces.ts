@@ -1,22 +1,35 @@
-// sf_311_agent/src/utils/interfaces.ts
-
+/**
+ * 311 Case Interface based on Socrata Dataset vw6y-z8j6
+ */
 export interface SF311Case {
-  service_request_id: string; // usually number, but API handles as ID
+  service_request_id: string;
   requested_datetime: string;
   closed_date?: string;
+  updated_datetime: string;
   status_description: string;
   status_notes?: string;
-  service_name: string; // Category (e.g., "Street and Sidewalk Cleaning")
+  agency_responsible: string;
+  service_name: string; // High level category (e.g., "Street and Sidewalk Cleaning")
   service_subtype: string; // Specific type
   service_details?: string;
   address?: string;
-  neighborhoods_sffind_boundaries?: string; // Neighborhood name
+  neighborhoods_sffind_boundaries?: string;
   lat?: string;
   long?: string;
-  media_url?: string;
+  media_url?: { url: string } | string; // Allow both just in case
+  source?: string; // Mobile App, Phone, Web, etc.
 }
 
-export interface SF311CaseStats {
-  category: string;
-  count: string;
+/**
+ * Interface for Aggregated Stats
+ */
+export interface AnalyticResult {
+  grouping: string;
+  count: string; // Socrata returns counts as strings in JSON sometimes
+}
+
+export interface GeoLocation {
+  lat: number;
+  lon: number;
+  display_name: string;
 }

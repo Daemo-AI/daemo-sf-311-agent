@@ -6,13 +6,12 @@ import { configDotenv } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import authController from "./controllers/authController";
 import { authMiddleware } from "./middlewares/authMiddleware";
-import { adminMiddleware } from "./middlewares/adminMiddleware";
-import { CrmFunctions } from "./services/crmFunctions";
 import {
   initializeDaemoService,
   startHostedConnection,
 } from "./services/daemoService";
 import agentController from "./controllers/agentController";
+import { SF311Functions } from "./services/sf311Functions";
 
 // Load environment variables
 configDotenv();
@@ -36,8 +35,7 @@ async function startServer() {
 
     // Initialize Daemo Service
     console.log("\n=== Initializing Daemo Service ===");
-    const crmFunctions = new CrmFunctions();
-    const sessionData = initializeDaemoService(crmFunctions);
+    const sessionData = initializeDaemoService();
     console.log(
       `Registered ${sessionData.Functions.length} CRM functions with Daemo`,
     );

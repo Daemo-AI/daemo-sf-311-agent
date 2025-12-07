@@ -2,7 +2,30 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { supabase } from "../app";
-import { User, UserRole } from "../utils/interfaces";
+
+/**
+ * Base entity interface with common properties
+ */
+export interface BaseEntity {
+  id: string; // UUID in PostgreSQL
+  created_at: string;
+  updated_at: string;
+}
+
+export enum UserRole {
+  ADMIN = "admin",
+  SALESPERSON = "salesperson",
+}
+
+/**
+ * User interface
+ */
+export interface User extends BaseEntity {
+  name: string;
+  email: string;
+  role: UserRole;
+  user_info: Record<string, any>;
+}
 
 /**
  * Register a new user

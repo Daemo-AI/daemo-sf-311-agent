@@ -1,9 +1,17 @@
-// sf_311_agent/src/services/sf311.schemas.ts
 import { z } from "zod";
+
+// --- GEOCODING ---
+export const GeocodeAddressSchema = z.object({
+  address: z
+    .string()
+    .describe(
+      "The street address or landmark to look up (e.g. 'Golden Gate Park', '500 Market St')",
+    ),
+});
 
 // --- LOOKUP ---
 export const GetCaseByIdSchema = z.object({
-  case_id: z.string().describe("The Service Request ID (e.g. 123456)"),
+  case_id: z.string().describe("The Service Request ID (e.g. 172340)"),
 });
 
 // --- SEARCH ---
@@ -15,17 +23,19 @@ export const SearchCasesSchema = z.object({
   neighborhood: z
     .string()
     .optional()
-    .describe("San Francisco neighborhood name (e.g. 'Mission', 'Marina')"),
+    .describe(
+      "San Francisco neighborhood name (e.g. 'Mission', 'Marina', 'Tenderloin')",
+    ),
   category: z
     .string()
     .optional()
     .describe(
-      "General category (e.g. 'Graffiti', 'Street and Sidewalk Cleaning')",
+      "General category (e.g. 'Graffiti', 'Street and Sidewalk Cleaning', 'Encampments')",
     ),
   limit: z
     .number()
     .optional()
-    .default(5)
+    .default(10)
     .describe("Max number of records to return"),
   days_ago: z
     .number()
@@ -37,11 +47,26 @@ export const SearchCasesSchema = z.object({
 export const SearchNearbySchema = z.object({
   latitude: z.number().describe("Latitude coordinate"),
   longitude: z.number().describe("Longitude coordinate"),
-  radius_meters: z.number().default(500).describe("Radius in meters to search"),
+  radius_meters: z
+    .number()
+    .default(300)
+    .describe("Radius in meters to search (default 300m)"),
   status: z.enum(["Open", "Closed"]).optional(),
 });
 
 // --- ANALYTICS ---
-export const AnalyzeComplaintsSchema = z.object({
+export const AgencyAnalyticsSchema = z.object({
+  limit: z.number().optional().default(5),
+});
+
+export const NeighborhoodAnalyticsSchema = z.object({
   neighborhood: z.string().describe("The neighborhood to analyze"),
+});
+
+export const StalledCasesSchema = z.object({
+  days_open: z
+    .number()
+    .default(30)
+    .describe("Minimum number of days the case has been open"),
+  neighborhood: z.string().optional().describe("Optional neighborhood filter"),
 });

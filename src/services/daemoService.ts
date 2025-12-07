@@ -3,38 +3,31 @@
  */
 
 import { DaemoBuilder, DaemoHostedConnection, SessionData } from "daemo-engine";
+import { SF311Functions } from "./sf311Functions"; // Import new class
 import * as fs from "fs";
-import { SF311Functions } from "./sf311Functions";
 
 let hostedConnection: DaemoHostedConnection | null = null;
 let sessionData: SessionData | null = null;
 
-/**
- * Initialize Daemo service and register all CRM functions
- */
-export function initializeDaemoService(
-  sf311Functions: SF311Functions,
-): SessionData {
+export function initializeDaemoService(): SessionData {
   console.log("[Daemo] Initializing Daemo service...");
 
   const builder = new DaemoBuilder().withServiceName("sf_311_service")
-    .withSystemPrompt(`You are the San Francisco 311 City Services AI Agent.
-  
-  Your goal is to help citizens understand what is happening in their city by querying the official open dataset of 311 cases.
+    .withSystemPrompt(`You are a helpful SF 311 assistant with access to San Francisco's 311 case system.
 
-  You can:
-  1. Look up specific case IDs to check status.
-  2. Search for recent issues (graffiti, cleaning, noise) in specific neighborhoods.
-  3. Analyze trends (e.g., "What is the biggest problem in the Mission?").
+You can help users:
+- Search for 311 cases by status, neighborhood, service type, and age
+- Get specific case details by case ID
+- Analyze case statistics and trends
 
-  Data Notes:
-  - If a user asks about "Open" cases, check 'status_description'.
-  - Neighborhood names must match official SF boundaries (e.g., "Mission", "Tenderloin", "Sunset/Parkside").
-  - Timestamps are in ISO format.
-  
-  Always be polite and summarize the data clearly. If a search returns no results, suggest broadening the search.`);
+When users ask about cases that have been open for a certain time period:
+- Use the days_old_min parameter to filter for cases OLDER than that many days
+- For example, "cases open for more than 30 days" means days_old_min=30
 
-  // Register the CRM service with all decorated functions
+Always provide clear, helpful information about the cases and their status.`);
+
+  // Register the SF 311 service
+  const sf311Functions = new SF311Functions();
   builder.registerService(sf311Functions);
 
   sessionData = builder.build();

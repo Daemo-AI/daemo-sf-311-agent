@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { UserRole } from "../utils/interfaces";
+import { UserRole } from "../controllers/authController";
 
 // Define a custom interface for the JWT payload
 interface JwtPayload {
