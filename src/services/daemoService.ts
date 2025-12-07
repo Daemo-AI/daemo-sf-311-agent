@@ -3,8 +3,8 @@
  */
 
 import { DaemoBuilder, DaemoHostedConnection, SessionData } from "daemo-engine";
-import { CrmFunctions } from "./crmFunctions";
 import * as fs from "fs";
+import { SF311Functions } from "./sf311Functions";
 
 let hostedConnection: DaemoHostedConnection | null = null;
 let sessionData: SessionData | null = null;
@@ -13,32 +13,29 @@ let sessionData: SessionData | null = null;
  * Initialize Daemo service and register all CRM functions
  */
 export function initializeDaemoService(
-  crmFunctions: CrmFunctions,
+  sf311Functions: SF311Functions,
 ): SessionData {
   console.log("[Daemo] Initializing Daemo service...");
 
-  const builder = new DaemoBuilder().withServiceName("crm_service")
-    .withSystemPrompt(`You are a helpful CRM assistant with access to a customer relationship management system.
+  const builder = new DaemoBuilder().withServiceName("sf_311_service")
+    .withSystemPrompt(`You are the San Francisco 311 City Services AI Agent.
+  
+  Your goal is to help citizens understand what is happening in their city by querying the official open dataset of 311 cases.
 
-You can help users:
-- Manage contacts (create, read, update, delete)
-- Manage deals (create, read, update, delete, change stages)
-- Manage notes (create, read, search with semantic similarity)
-- Manage users
+  You can:
+  1. Look up specific case IDs to check status.
+  2. Search for recent issues (graffiti, cleaning, noise) in specific neighborhoods.
+  3. Analyze trends (e.g., "What is the biggest problem in the Mission?").
 
-When users ask questions, use the available functions to retrieve or modify data.
-Always be helpful, accurate, and provide relevant information from the CRM database.
-
-Important guidelines:
-- When creating contacts, deals, or notes, ensure all required fields are provided
-- Email addresses must be unique for contacts
-- Deal stages follow a specific pipeline: Lead Identified -> Meeting Scheduled -> Demo Completed -> Proposal Sent -> Follow-Up -> Contract Sent -> Closed Won/Lost
-- Notes support semantic search using embeddings
-- Always validate IDs before operations
-- Provide clear error messages if operations fail`);
+  Data Notes:
+  - If a user asks about "Open" cases, check 'status_description'.
+  - Neighborhood names must match official SF boundaries (e.g., "Mission", "Tenderloin", "Sunset/Parkside").
+  - Timestamps are in ISO format.
+  
+  Always be polite and summarize the data clearly. If a search returns no results, suggest broadening the search.`);
 
   // Register the CRM service with all decorated functions
-  builder.registerService(crmFunctions);
+  builder.registerService(sf311Functions);
 
   sessionData = builder.build();
   sessionData.Port = 50052;
@@ -106,11 +103,11 @@ export function isHostedConnectionActive(): boolean {
 }
 
 export function debugSessionData() {
-  const crmFunctions = new CrmFunctions();
-  const builder = new DaemoBuilder().withServiceName("crm_service");
+  const sf311Functions = new SF311Functions();
+  const builder = new DaemoBuilder().withServiceName("sf311_service");
 
   // Register service
-  builder.registerService(crmFunctions);
+  builder.registerService(sf311Functions);
 
   // Build session data
   const sessionData = builder.build();
