@@ -29,7 +29,7 @@ cp env.example .env
 ```
 
 Open `.env` and add your keys:
-- **`DAEMO_AGENT_API_KEY`**: Required to connect to the Daemo Engine.
+- **`DAEMO_AGENT_API_KEY`**: Required to connect to the Daemo Engine ---> Go to https://app.daemo.ai/ to get it.
 - **`GEMINI_API_KEY`** (or other provider key): Required for the AI model.
 - **`SF_311_APP_TOKEN`**: Recommended for the sample SF 311 service (prevents rate limits).
 
