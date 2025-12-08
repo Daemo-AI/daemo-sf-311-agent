@@ -3,6 +3,21 @@
  *  EXAMPLE SCHEMAS
  * =========================================================================================
  *
+ * WHAT IS THIS?
+ * This is the "Rulebook" or "Contract". It defines the exact structure of data that
+ * your functions expect.
+ *
+ * HOW DOES IT WORK?
+ * We use a library called `Zod` to define data shapes. For example, we say that
+ * `service_name` must be a String and is Optional.
+ *
+ * WHY IS IT HERE?
+ * Large Language Models (LLMs) can be unpredictable. These schemas force the AI to
+ * provide structured, valid data (JSON) that your code can reliably use, preventing
+ * crashes and errors.
+ *
+ * -----------------------------------------------------------------------------------------
+ *
  * This file defines the Zod schemas used by the SF311Functions example service.
  * Schemas allow the AI to strictly validate inputs and outputs.
  *

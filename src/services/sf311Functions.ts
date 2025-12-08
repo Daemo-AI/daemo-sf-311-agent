@@ -3,6 +3,22 @@
  *  EXAMPLE SERVICE IMPLEMENTATION
  * =========================================================================================
  *
+ * WHAT IS THIS?
+ * This is the "Toolbox". It contains the actual code (functions) that the AI agent
+ * can execute to perform tasks.
+ *
+ * HOW DOES IT WORK?
+ * We define a class (`SF311Functions`) and methods (`searchCases`, `getStats`).
+ * We use the `@DaemoFunction` decorator to "teach" the AI about each method—telling it
+ * what the method does, what inputs it needs, and what it returns.
+ *
+ * WHY IS IT HERE?
+ * When a user asks "Find open cases in the Mission district", the AI looks at the
+ * descriptions in this file, decides `searchCases` is the right tool, and executes
+ * the code you wrote here.
+ *
+ * -----------------------------------------------------------------------------------------
+ *
  * This file is an EXAMPLE of how to define tools for the AI agent.
  * It implements functions to search and analyze San Francisco 311 data.
  *

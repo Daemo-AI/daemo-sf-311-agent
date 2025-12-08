@@ -3,6 +3,20 @@
  *  SERVICE REGISTRY - CUSTOMIZATION POINT
  * =========================================================================================
  *
+ * WHAT IS THIS?
+ * This is the "Main Switchboard" for your agent. It connects your custom code to the
+ * Daemo Engine.
+ *
+ * HOW DOES IT WORK?
+ * It uses the `DaemoBuilder` to create a session. You import your service classes
+ * (like `SF311Functions`) and register them here.
+ *
+ * WHY IS IT HERE?
+ * The AI needs to know what tools are available to it. This file packages up all your
+ * custom functions and hands them over to the AI engine on startup.
+ *
+ * -----------------------------------------------------------------------------------------
+ *
  * This file is where you register your custom functions/tools with the Daemo Engine.
  *
  * HOW TO CUSTOMIZE:
