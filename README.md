@@ -16,7 +16,7 @@ Clone the repository and install dependencies:
 
 ```bash
 git clone <your-repo-url>
-cd daemo-sf-311-agent
+cd daemo-agent-template-sf-311
 npm install
 ```
 
@@ -25,7 +25,7 @@ npm install
 Copy the example environment file and configure your keys:
 
 ```bash
-cp .env.example .env
+cp env.example .env
 ```
 
 Open `.env` and add your keys:
