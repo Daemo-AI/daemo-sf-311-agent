@@ -4,8 +4,6 @@ import morgan from "morgan";
 import { errorHandler } from "./middlewares/errorHandler";
 import { configDotenv } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
-import authController from "./controllers/authController";
-import { authMiddleware } from "./middlewares/authMiddleware";
 import {
   initializeDaemoService,
   startHostedConnection,
@@ -61,16 +59,8 @@ async function startServer() {
 
     // Define the root path with a greeting message
     app.get("/", (_: Request, res: Response) => {
-      res.json({ message: "Welcome to Daemo CRM!" });
+      res.json({ message: "Welcome to Daemo AI Agent Engine Boilerplate Template!" });
     });
-
-    // --- PUBLIC ROUTES ---
-    app.post("/auth/register", authController.register);
-    app.post("/auth/login", authController.login);
-
-    // --- PROTECTED ROUTES ---
-    // Apply auth middleware to all routes defined after this line
-    app.use(authMiddleware);
 
     // Define test endpoint with a greeting message
     app.get("/hello/:name", (req: Request, res: Response) => {

@@ -5,7 +5,6 @@
 import { Request, Response } from "express";
 import { DaemoClient, StorageConfig } from "daemo-engine";
 import { getSessionData } from "../services/daemoService";
-import { AuthenticatedRequest } from "../middlewares/authMiddleware";
 
 // Lazy-load the client - don't instantiate until first use
 let daemoClient: DaemoClient | null = null;
@@ -81,11 +80,11 @@ function buildLlmConfig(max_tokens?: number) {
  * POST /agent/query
  */
 const processQuery = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
 ): Promise<void> => {
   try {
-    const role = req.user?.role;
+    const role = undefined;
     const { query, thread_id, context, max_tokens, analysis_mode } = req.body;
 
     if (!query) {
@@ -151,8 +150,8 @@ const processQuery = async (
  * Process a natural language query with the AI agent and stream the response
  * POST /agent/query-stream
  */
-const processQueryStreamed = (req: AuthenticatedRequest, res: Response) => {
-  const role = req.user?.role;
+const processQueryStreamed = (req: Request, res: Response) => {
+  const role = undefined;
   const { query, thread_id, context, max_tokens, analysis_mode } = req.body;
 
   if (!query) {
