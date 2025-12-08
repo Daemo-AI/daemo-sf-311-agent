@@ -1,3 +1,21 @@
+/*
+ * =========================================================================================
+ *  EXAMPLE SERVICE IMPLEMENTATION
+ * =========================================================================================
+ *
+ * This file is an EXAMPLE of how to define tools for the AI agent.
+ * It implements functions to search and analyze San Francisco 311 data.
+ *
+ * HOW TO CREATE YOUR OWN SERVICE:
+ * 1. Create a new file (e.g., 'myService.ts').
+ * 2. Create a class and methods.
+ * 3. Decorate methods with @DaemoFunction to expose them to the AI.
+ * 4. Use Zod schemas to define input/output (see sf311.schemas.ts).
+ *
+ * You can delete this file and 'sf311.schemas.ts' when you are ready to build your own.
+ * =========================================================================================
+ */
+
 import { DaemoFunction } from "daemo-engine";
 import axios from "axios";
 import { z } from "zod";

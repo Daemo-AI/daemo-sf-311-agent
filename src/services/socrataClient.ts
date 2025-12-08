@@ -1,3 +1,13 @@
+/*
+ * =========================================================================================
+ *  EXAMPLE API CLIENT
+ * =========================================================================================
+ *
+ * A helper class for the SF311 example service to talk to the Socrata API.
+ * You likely won't need this unless you are also working with Socrata/SF Data.
+ * =========================================================================================
+ */
+
 import axios from "axios";
 import { configDotenv } from "dotenv";
 import { GeoLocation } from "../utils/interfaces";

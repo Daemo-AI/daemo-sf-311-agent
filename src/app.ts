@@ -1,3 +1,16 @@
+/*
+ * =========================================================================================
+ *  CORE ENGINE FILE - DO NOT MODIFY
+ * =========================================================================================
+ *
+ * This file sets up the Express server, middleware, and routes.
+ * It initializes the Daemo Engine and connects your Agent to the platform.
+ *
+ * For most use cases, you do NOT need to touch this file.
+ * Customization should happen in the 'src/services' directory.
+ * =========================================================================================
+ */
+
 import express, { Request, Response } from "express";
 import cors from "cors";
 import morgan from "morgan";

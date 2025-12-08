@@ -1,3 +1,19 @@
+/*
+ * =========================================================================================
+ *  CORE ENGINE CONTROLLER - DO NOT MODIFY
+ * =========================================================================================
+ *
+ * This controller handles the low-level communication with the Daemo Agent API.
+ * It manages:
+ * - Query processing
+ * - Streaming responses
+ * - Thread management (history)
+ * - LLM context and configuration
+ *
+ * All business logic and custom tools should be defined in 'src/services'.
+ * =========================================================================================
+ */
+
 /**
  * Agent Controller - Handles AI agent queries and thread management
  */

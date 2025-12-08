@@ -1,3 +1,18 @@
+/*
+ * =========================================================================================
+ *  SERVICE REGISTRY - CUSTOMIZATION POINT
+ * =========================================================================================
+ *
+ * This file is where you register your custom functions/tools with the Daemo Engine.
+ *
+ * HOW TO CUSTOMIZE:
+ * 1. Import your custom service class (e.g., MyCustomFunctions).
+ * 2. Instantiate it inside 'initializeDaemoService'.
+ * 3. Call 'builder.registerService(myCustomFunctions)'.
+ * 4. Update the system prompt to reflect your agent's new persona.
+ * =========================================================================================
+ */
+
 /**
  * Daemo Service - Registers CRM functions with the Daemo SDK
  */

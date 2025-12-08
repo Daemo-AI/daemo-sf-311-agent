@@ -1,3 +1,15 @@
+/*
+ * =========================================================================================
+ *  EXAMPLE SCHEMAS
+ * =========================================================================================
+ *
+ * This file defines the Zod schemas used by the SF311Functions example service.
+ * Schemas allow the AI to strictly validate inputs and outputs.
+ *
+ * When building your own service, define your input/output schemas in a similar way.
+ * =========================================================================================
+ */
+
 import { z } from "zod";
 
 // --- GEOCODING ---
