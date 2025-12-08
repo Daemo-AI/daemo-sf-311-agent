@@ -15,7 +15,7 @@ This template is designed to be **LLM-friendly** and **easy to extend**. It come
 Clone the repository and install dependencies:
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/jimmytheguy2024/daemo-AI-agent-template-sf-311.git 
 cd daemo-agent-template-sf-311
 npm install
 ```
