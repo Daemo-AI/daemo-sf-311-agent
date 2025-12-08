@@ -16,7 +16,7 @@ Clone the repository and install dependencies:
 
 ```bash
 git clone https://github.com/jimmytheguy2024/daemo-AI-agent-template-sf-311.git 
-cd daemo-agent-template-sf-311
+cd daemo-AI-agent-template-sf-311
 npm install
 ```
 
