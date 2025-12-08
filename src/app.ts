@@ -3,7 +3,6 @@ import cors from "cors";
 import morgan from "morgan";
 import { errorHandler } from "./middlewares/errorHandler";
 import { configDotenv } from "dotenv";
-import { createClient } from "@supabase/supabase-js";
 import {
   initializeDaemoService,
   startHostedConnection,
@@ -14,23 +13,8 @@ import { SF311Functions } from "./services/sf311Functions";
 // Load environment variables
 configDotenv();
 
-// Initialize Supabase client
-export const supabase = createClient(
-  process.env.SUPABASE_URL as string,
-  process.env.SUPABASE_KEY as string,
-);
-
 async function startServer() {
   try {
-    // Test Supabase connection
-    const { error } = await supabase.from("health_check").select("*").limit(1);
-
-    if (error) {
-      throw new Error(`Supabase connection error: ${error.message}`);
-    }
-
-    console.log("Connected to Supabase successfully!");
-
     // Initialize Daemo Service
     console.log("\n=== Initializing Daemo Service ===");
     const sessionData = initializeDaemoService();
