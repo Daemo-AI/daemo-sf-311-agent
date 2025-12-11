@@ -2,58 +2,59 @@
  * =========================================================================================
  *  SERVICE REGISTRY - CUSTOMIZATION POINT
  * =========================================================================================
- *
- * WHAT IS THIS?
- * This is the "Main Switchboard" for your agent. It connects your custom code to the
- * Daemo Engine.
- *
- * HOW DOES IT WORK?
- * It uses the `DaemoBuilder` to create a session. You import your service classes
- * (like `SF311Functions`) and register them here.
- *
- * WHY IS IT HERE?
- * The AI needs to know what tools are available to it. This file packages up all your
- * custom functions and hands them over to the AI engine on startup.
- *
- * -----------------------------------------------------------------------------------------
- *
- * This file is where you register your custom functions/tools with the Daemo Engine.
- *
- * HOW TO CUSTOMIZE:
- * 1. Import your custom service class (e.g., MyCustomFunctions).
- * 2. Instantiate it inside 'initializeDaemoService'.
- * 3. Call 'builder.registerService(myCustomFunctions)'.
- * 4. Update the system prompt to reflect your agent's new persona.
- * =========================================================================================
- */
-
-/**
- * Daemo Service - Registers CRM functions with the Daemo SDK
  */
 
 import { DaemoBuilder, DaemoHostedConnection, SessionData } from "daemo-engine";
-import { SF311Functions } from "./sf311Functions"; // Import new class
+import { SF311Functions } from "./sf311Functions";
 import * as fs from "fs";
 
 let hostedConnection: DaemoHostedConnection | null = null;
 let sessionData: SessionData | null = null;
 
+const systemPrompt = `You are an expert SF 311 Data Analyst Agent.
+
+## CRITICAL INSTRUCTION: TOOL USAGE
+When you call a tool (function), you MUST pass a SINGLE JSON OBJECT containing the named parameters.
+DO NOT pass positional arguments.
+
+CORRECT:
+call searchOrAggregate({ "select": "count(*)", "where": "..." })
+
+INCORRECT:
+call searchOrAggregate("count(*)", "...")
+
+## YOUR TOOLKIT
+
+1. **searchOrAggregate**: Use this for general counts, grouping, and finding top complaints.
+   - "Most common complaint...": Use { "select": "service_name, count(*) as c", "group_by": "service_name", "order_by": "c DESC" }
+   - "How many trash cans...": Use { "select": "count(*)", "where": "service_name LIKE '%Trash%'" }
+
+2. **analyzeCycleTimes**: Use this for "Time to close", "Duration", or "How long" questions.
+   - Socrata cannot calculate date differences easily. This tool fetches data and does the math for you.
+
+3. **analyzeResubmissions**: Use this for "Closed then resubmitted", "Reopened", or "Zombie case" questions.
+   - It scans history for cases at the same address/type that appear shortly after a previous one closed.
+
+4. **findIntersections**: Use this specifically if the user asks about "Intersections".
+
+## FIELD KNOWLEDGE
+- **Dates**: Format is ISO 'YYYY-MM-DDThh:mm:ss'.
+- **Neighborhoods**: Use column 'neighborhoods_sffind_boundaries'.
+- **Districts**: Use column 'supervisor_district' (values '1', '2'...'11').
+- **Common Services**: 'Street and Sidewalk Cleaning', 'Encampments', 'Graffiti', 'Damaged Property'.
+
+## STRATEGY
+1. Identify if the user wants a simple Count/List (use searchOrAggregate) or complex Analytics (use analyze tools).
+2. Construct the parameters object.
+3. Call the tool.
+`;
+
 export function initializeDaemoService(): SessionData {
   console.log("[Daemo] Initializing Daemo service...");
 
-  const builder = new DaemoBuilder().withServiceName("sf_311_service")
-    .withSystemPrompt(`You are a helpful SF 311 assistant with access to San Francisco's 311 case system.
-
-You can help users:
-- Search for 311 cases by status, neighborhood, service type, and age
-- Get specific case details by case ID
-- Analyze case statistics and trends
-
-When users ask about cases that have been open for a certain time period:
-- Use the days_old_min parameter to filter for cases OLDER than that many days
-- For example, "cases open for more than 30 days" means days_old_min=30
-
-Always provide clear, helpful information about the cases and their status.`);
+  const builder = new DaemoBuilder()
+    .withServiceName("sf_311_service")
+    .withSystemPrompt(systemPrompt);
 
   // Register the SF 311 service
   const sf311Functions = new SF311Functions();
@@ -78,9 +79,6 @@ export async function startHostedConnection(
   if (!agentApiKey) {
     console.warn(
       "[Daemo] DAEMO_AGENT_API_KEY not set. Hosted connection will not start.",
-    );
-    console.warn(
-      "[Daemo] You can still use the agent endpoint with session_id parameter.",
     );
     return;
   }
@@ -115,72 +113,4 @@ export function stopHostedConnection(): void {
  */
 export function getSessionData(): SessionData | null {
   return sessionData;
-}
-
-/**
- * Check if hosted connection is active
- */
-export function isHostedConnectionActive(): boolean {
-  return hostedConnection?.isActive() ?? false;
-}
-
-export function debugSessionData() {
-  const sf311Functions = new SF311Functions();
-  const builder = new DaemoBuilder().withServiceName("sf311_service");
-
-  // Register service
-  builder.registerService(sf311Functions);
-
-  // Build session data
-  const sessionData = builder.build();
-
-  // Write to file for inspection
-  fs.writeFileSync(
-    "session-data-debug.json",
-    JSON.stringify(sessionData, null, 2),
-  );
-
-  console.log("\n=== SESSION DATA DEBUG ===\n");
-  console.log(`Service Name: ${sessionData.ServiceName}`);
-  console.log(`Total Functions: ${sessionData.Functions.length}`);
-  console.log(
-    `Total Definitions: ${Object.keys(sessionData.Definitions).length}`,
-  );
-
-  console.log("\n=== FUNCTION DETAILS ===\n");
-
-  for (const func of sessionData.Functions.slice(0, 5)) {
-    // First 5 functions
-    console.log(`\nFunction: ${func.Name}`);
-    console.log(`  Description: ${func.Description}`);
-    console.log(`  Parameters (${func.Parameters.length}):`);
-
-    if (func.Parameters.length === 0) {
-      console.log("    ⚠️  NO PARAMETERS FOUND!");
-    } else {
-      for (const param of func.Parameters) {
-        console.log(`    - ${param.name}: ${JSON.stringify(param.schema)}`);
-        console.log(`      Required: ${param.required}`);
-      }
-    }
-
-    console.log(`  Return Type: ${JSON.stringify(func.ReturnType)}`);
-  }
-
-  console.log("\n=== DEFINITIONS ===\n");
-  for (const [name, schema] of Object.entries(sessionData.Definitions).slice(
-    0,
-    3,
-  )) {
-    console.log(`${name}:`, JSON.stringify(schema, null, 2));
-  }
-
-  console.log("\n✅ Debug data written to session-data-debug.json");
-
-  return sessionData;
-}
-
-// If running this file directly
-if (require.main === module) {
-  debugSessionData();
 }
