@@ -1,6 +1,6 @@
 /*
- * SF 311 Flexible Functions - Updated
- * Flattened descriptions to prevent Engine runtime generation errors.
+ * SF 311 Flexible Functions - Optimized
+ * Flattened descriptions and defensive coding against SoQL timeouts.
  */
 
 import { DaemoFunction } from "daemo-engine";
@@ -25,14 +25,13 @@ export class SF311Functions {
     return headers;
   }
 
-  // --- Helper: Execute raw SoQL ---
   private async runSoql(query: string) {
-    console.log(`[SoQL] ${query}`);
+    console.log(`[SoQL] Executing: ${query}`);
     try {
       const response = await axios.post(
         SF_311_API_BASE,
         { query },
-        { headers: this.getAuthHeaders(), timeout: 30000 },
+        { headers: this.getAuthHeaders(), timeout: 45000 }, // Increased timeout to 45s
       );
       return response.data;
     } catch (error: any) {
@@ -40,6 +39,12 @@ export class SF311Functions {
         "[SoQL] Error:",
         error.response?.data?.message || error.message,
       );
+      // Return a helpful error message to the AI so it can self-correct
+      if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
+        throw new Error(
+          "Query timed out. The dataset is too large. Please refine your query: 1. Remove leading wildcards (e.g. use 'Text%' instead of '%Text%'). 2. Reduce the date range. 3. Limit columns.",
+        );
+      }
       throw new Error(
         `Data fetch failed: ${error.response?.data?.message || error.message}`,
       );
@@ -48,7 +53,7 @@ export class SF311Functions {
 
   @DaemoFunction({
     description:
-      "Execute a general search or aggregation using SoQL. Use this for general counts, grouping (e.g. 'Most common complaint'), and finding top records.",
+      "Execute a general search or aggregation using SoQL. Input MUST be a single object. Use this for general counts, grouping, and finding top records.",
     tags: ["311", "search", "aggregate"],
     category: "SF311",
     inputSchema: z.object({
@@ -61,7 +66,7 @@ export class SF311Functions {
         .string()
         .optional()
         .describe(
-          "Filter conditions (e.g., \"service_name LIKE '%Trash%' AND supervisor_district = '3'\")",
+          "Filter conditions (e.g., \"service_name = 'Graffiti' AND supervisor_district = '3'\")",
         ),
       group_by: z
         .string()
@@ -97,18 +102,19 @@ export class SF311Functions {
 
   @DaemoFunction({
     description:
-      "Analyze how long it takes to close cases. Calculates avg, median, min, max duration in days. Use for 'Time to close' or 'Duration' questions.",
+      "Analyze how long it takes to close cases. Calculates avg, median, min, max duration in days. Fetches raw dates and computes stats in memory.",
     tags: ["311", "analytics", "time"],
     category: "SF311",
     inputSchema: z.object({
       service_name_filter: z
         .string()
         .optional()
-        .describe(
-          "Filter by partial service name (e.g. 'Encampment', 'Trash')",
-        ),
-      neighborhood: z.string().optional().describe("Filter by neighborhood"),
-      days_ago: z.number().default(180).describe("Look back window in days"),
+        .describe("Exact or prefix match for service name (e.g. 'Encampment')"),
+      neighborhood: z.string().optional().describe("Exact neighborhood name"),
+      days_ago: z
+        .number()
+        .default(90)
+        .describe("Look back window in days (default 90)"),
     }),
     outputSchema: z.object({
       total_closed_analyzed: z.number(),
@@ -123,15 +129,16 @@ export class SF311Functions {
     neighborhood?: string;
     days_ago: number;
   }) {
-    // 1. Calculate date threshold
     const date = new Date();
     date.setDate(date.getDate() - input.days_ago);
     const dateStr = date.toISOString().split(".")[0];
 
-    // 2. Build Query
+    // Optimize: Fetch strictly necessary columns
     let where = `status_description = 'Closed' AND requested_datetime > '${dateStr}' AND closed_date IS NOT NULL`;
+
+    // Avoid leading wildcard
     if (input.service_name_filter)
-      where += ` AND service_name LIKE '%${input.service_name_filter}%'`;
+      where += ` AND service_name LIKE '${input.service_name_filter}%'`;
     if (input.neighborhood)
       where += ` AND neighborhoods_sffind_boundaries = '${input.neighborhood}'`;
 
@@ -149,12 +156,11 @@ export class SF311Functions {
       };
     }
 
-    // 3. Calculate Diffs in Node.js
     const durations = rows
       .map((r: any) => {
         const start = new Date(r.requested_datetime).getTime();
         const end = new Date(r.closed_date).getTime();
-        return (end - start) / (1000 * 60 * 60 * 24); // Convert ms to Days
+        return (end - start) / (1000 * 60 * 60 * 24);
       })
       .sort((a: number, b: number) => a - b);
 
@@ -177,19 +183,22 @@ export class SF311Functions {
 
   @DaemoFunction({
     description:
-      "Identify 'Zombie' cases: Requests that were closed and then immediately resubmitted/reopened at the same location. Use for 'resubmitted' or 'reopened' questions.",
+      "Identify 'Zombie' cases: Requests closed and then immediately resubmitted at the same location within 7 days. Input MUST be a single object.",
     tags: ["311", "analytics", "resubmissions"],
     category: "SF311",
     inputSchema: z.object({
       service_name_filter: z
         .string()
         .optional()
-        .describe("Filter by service type (e.g. 'Encampment')"),
+        .describe("Service name prefix (e.g. 'Encampment')"),
       district: z
         .string()
         .optional()
         .describe("Supervisor district number (e.g. '6')"),
-      days_to_analyze: z.number().default(90).describe("Time window to scan"),
+      days_to_analyze: z
+        .number()
+        .default(30)
+        .describe("Time window (default 30 days due to heavy processing)"),
     }),
     outputSchema: z.object({
       total_cases_scanned: z.number(),
@@ -207,19 +216,17 @@ export class SF311Functions {
     date.setDate(date.getDate() - input.days_to_analyze);
     const dateStr = date.toISOString().split(".")[0];
 
-    // Fetch data sorted by address and time to easily spot sequential duplicates
     let where = `requested_datetime > '${dateStr}'`;
     if (input.service_name_filter)
-      where += ` AND service_name LIKE '%${input.service_name_filter}%'`;
+      where += ` AND service_name LIKE '${input.service_name_filter}%'`;
     if (input.district)
       where += ` AND supervisor_district = '${input.district}'`;
 
-    // We need columns to identify "same issue": address, service_subtype
-    // We need time: requested_datetime, closed_date
+    // Only fetch columns needed for the logic
     const query = `SELECT service_request_id, service_name, service_subtype, address, requested_datetime, closed_date, status_description 
                    WHERE ${where} 
                    ORDER BY address, service_subtype, requested_datetime ASC 
-                   LIMIT 5000`;
+                   LIMIT 3000`;
 
     const rows = await this.runSoql(query);
 
@@ -227,22 +234,18 @@ export class SF311Functions {
     const examples: any[] = [];
     const REOPEN_WINDOW_DAYS = 7;
 
-    // Iterate to find patterns: [Case A Closed] -> [Case B Opened shortly after at same place]
     for (let i = 1; i < rows.length; i++) {
       const prev = rows[i - 1];
       const curr = rows[i];
 
-      // Must be same address and same specific issue type
       if (
         prev.address === curr.address &&
         prev.service_subtype === curr.service_subtype
       ) {
-        // Prev case must be closed
         if (prev.closed_date) {
           const prevClosed = new Date(prev.closed_date).getTime();
           const currOpened = new Date(curr.requested_datetime).getTime();
 
-          // Check if current was opened AFTER prev was closed, but within window
           const diffDays = (currOpened - prevClosed) / (1000 * 60 * 60 * 24);
 
           if (diffDays >= 0 && diffDays <= REOPEN_WINDOW_DAYS) {
@@ -275,12 +278,12 @@ export class SF311Functions {
 
   @DaemoFunction({
     description:
-      "Specialized search for intersection-related queries. Use this for 'requests at an intersection' questions.",
+      "Specialized search for intersection-related queries. Finds requests where the address contains ' / '.",
     tags: ["311", "search", "intersection"],
     category: "SF311",
     inputSchema: z.object({
-      service_query: z.string().describe("Like 'Trash' or 'Can'"),
-      days_ago: z.number().default(180),
+      service_query: z.string().describe("Exact or partial service name"),
+      days_ago: z.number().default(90),
     }),
     outputSchema: z.object({
       count: z.number(),
@@ -292,10 +295,10 @@ export class SF311Functions {
     date.setDate(date.getDate() - input.days_ago);
     const dateStr = date.toISOString().split(".")[0];
 
-    // Intersections in SF data are often denoted by " / " or specific intersection types
-    // We filter address for slash
+    // Performance note: 'LIKE' on address with wildcards is slow, but necessary for intersections.
+    // We restrict by date heavily to compensate.
     const query = `SELECT count(*) as count, address, service_name 
-                   WHERE service_name LIKE '%${input.service_query}%' 
+                   WHERE service_name LIKE '${input.service_query}%' 
                    AND address LIKE '% / %' 
                    AND requested_datetime > '${dateStr}'
                    GROUP BY address, service_name
@@ -303,6 +306,7 @@ export class SF311Functions {
                    LIMIT 50`;
 
     const results = await this.runSoql(query);
+    // Socrata aggregation returns array of objects, not a single count number for the whole set
     const total = results.reduce(
       (acc: number, r: any) => acc + parseInt(r.count),
       0,
