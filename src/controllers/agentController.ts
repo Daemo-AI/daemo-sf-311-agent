@@ -87,10 +87,7 @@ function buildLlmConfig(max_tokens?: number) {
  * Process a natural language query with the AI agent
  * POST /agent/query
  */
-const processQuery = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+const processQuery = async (req: Request, res: Response): Promise<void> => {
   try {
     const role = undefined;
     const { query, thread_id, context, max_tokens, analysis_mode } = req.body;
@@ -176,9 +173,6 @@ const processQueryStreamed = (req: Request, res: Response) => {
   // Prepare LLM config from environment
   const llmConfig = buildLlmConfig(max_tokens);
 
-  // Prepare storage config from environment
-  const storageConfig = buildStorageConfig();
-
   // Get the client (will be created on first call)
   const client = getDaemoClient();
 
@@ -207,7 +201,6 @@ const processQueryStreamed = (req: Request, res: Response) => {
         threadId: thread_id,
         sessionId: sessionData.ServiceName,
         llmConfig,
-        storageConfig,
         role,
         contextJson: context ? JSON.stringify(context) : undefined,
         analysisMode: analysis_mode,
