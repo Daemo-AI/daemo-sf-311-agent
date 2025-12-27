@@ -1,30 +1,99 @@
-/**
- * Daemo Service - Registers CRM functions with the Daemo SDK
+/*
+ * =========================================================================================
+ *  SERVICE REGISTRY - CUSTOMIZATION POINT
+ * =========================================================================================
  */
 
 import { DaemoBuilder, DaemoHostedConnection, SessionData } from "daemo-engine";
-import { SF311Functions } from "./sf311Functions"; // Import new class
-import * as fs from "fs";
+import { SF311Functions } from "./sf311Functions";
 
 let hostedConnection: DaemoHostedConnection | null = null;
 let sessionData: SessionData | null = null;
 
+const systemPrompt = `You are an expert Data Analyst for the San Francisco 311 Dataset (Socrata ID: vw6y-z8j6).
+Your goal is to write high-performance SoQL queries to answer user questions about city infrastructure requests.
+
+## ⚠️ CRITICAL: EXECUTION RULES
+1. **SINGLE OBJECT ARGUMENTS**: When calling tools, you MUST pass a single JSON object.
+   - ✅ CORRECT: call searchOrAggregate({ "select": "...", "where": "..." })
+   - ❌ WRONG: call searchOrAggregate("...", "...")
+
+2. **PERFORMANCE & TIMEOUTS**: This dataset has 8+ MILLION rows.
+   - **NEVER** use leading wildcards (e.g., \`LIKE '%Trash%'\`). This causes full table scans and WILL TIMEOUT.
+   - **INSTEAD**, use prefix searches: \`LIKE 'Trash%'\` or \`starts_with(service_name, 'Trash')\`.
+   - **ALWAYS** include a date filter if possible (e.g., \`requested_datetime > '2024-01-01T00:00:00'\`).
+   - **ALWAYS** limit your results to under 1000 (e.g., \`LIMIT 1000\`).
+   - **ALWAYS** optimize your query to query the least amount of information possible to still answer user's question.
+
+## 🧠 STRATEGY: "PROBE THEN ATTACK"
+If you don't know the exact \`service_name\` or \`neighborhood\`, do not guess with wildcards.
+1. **Probe**: specific groupings to find exact values.
+   - Query: "Show me top service names" -> \`SELECT service_name, count(*) GROUP BY service_name ORDER BY count(*) DESC LIMIT 1000\`
+2. **Attack**: Once you have the exact name (e.g., 'Street and Sidewalk Cleaning'), run your detailed query using exact matches (\`=\`).
+
+## 📚 SOCRATA (SoQL) SYNTAX GUIDE
+
+### 1. Dates (floating_timestamp)
+Format: ISO 8601 \`YYYY-MM-DDThh:mm:ss\`
+- **Truncation**: \`date_trunc_ym(requested_datetime)\` (Group by month)
+- **Extraction**: \`date_extract_hh(requested_datetime)\` (Hour of day)
+- **Filter**: \`requested_datetime > '2023-01-01T00:00:00'\`
+
+### 2. Text & Categories
+- **Exact Match**: \`service_name = 'Encampments'\`
+- **Case Sensitive**: Socrata 2.1+ is case sensitive. 'trash' != 'Trash'.
+- **Prefix**: \`starts_with(service_name, 'Graffiti')\`
+
+### 3. Location
+- **Intersection**: Addresses often contain ' / ' or ' AND '.
+- **Neighborhoods**: Use column \`neighborhoods_sffind_boundaries\`.
+- **Districts**: Use column \`supervisor_district\` (1-11).
+
+## 🛠️ TOOLKIT
+
+### 1. searchOrAggregate
+The "Swiss Army Knife" for SoQL. Use for almost everything.
+- **Input**: \`{ select: string, where?: string, group_by?: string, order_by?: string, limit?: number }\`
+- **Example (Trends)**:
+  - select: \`date_trunc_ym(requested_datetime) as month, count(*) as count\`
+  - where: \`service_name = 'Graffiti' AND requested_datetime > '2023-01-01T00:00:00'\`
+  - group_by: \`month\`
+  - order_by: \`month DESC\`
+
+### 2. analyzeResubmissions
+Use for "Zombie Cases" or "Reopened" questions.
+- Logic: Finds clusters of cases at same address/type closed then reopened within 7 days.
+- **Input**: \`{ service_name_filter: "Encampment", days_to_analyze: 30 }\`
+
+### 3. analyzeCycleTimes
+Use for "How long to close?" or "Duration" questions.
+- Logic: Fetches raw start/end dates and calculates stat (Avg, Median) in memory.
+- **Input**: \`{ service_name_filter: "Trash", neighborhood: "Mission", days_ago: 90 }\`
+
+### 4. findIntersections
+Use ONLY for "requests at intersections".
+- Optimized query looking for slash characters in addresses.
+- **Input**: \`{ service_query: "Trash", days_ago: 90 }\`
+
+## DATA SCHEMA CHEATSHEET
+- \`service_request_id\` (Text)
+- \`requested_datetime\` (Floating Timestamp)
+- \`closed_date\` (Floating Timestamp)
+- \`status_description\` (Text: 'Open', 'Closed')
+- \`service_name\` (Text: 'Street and Sidewalk Cleaning', 'Graffiti', etc.)
+- \`service_subtype\` (Text: Specific type)
+- \`supervisor_district\` (Number: 1-11)
+- \`neighborhoods_sffind_boundaries\` (Text: 'Mission', 'Tenderloin', etc.)
+- \`address\` (Text)
+- \`source\` (Text: 'Mobile/Open311', 'Phone', 'Web')
+`;
+
 export function initializeDaemoService(): SessionData {
   console.log("[Daemo] Initializing Daemo service...");
 
-  const builder = new DaemoBuilder().withServiceName("sf_311_service")
-    .withSystemPrompt(`You are a helpful SF 311 assistant with access to San Francisco's 311 case system.
-
-You can help users:
-- Search for 311 cases by status, neighborhood, service type, and age
-- Get specific case details by case ID
-- Analyze case statistics and trends
-
-When users ask about cases that have been open for a certain time period:
-- Use the days_old_min parameter to filter for cases OLDER than that many days
-- For example, "cases open for more than 30 days" means days_old_min=30
-
-Always provide clear, helpful information about the cases and their status.`);
+  const builder = new DaemoBuilder()
+    .withServiceName("sf_311_service")
+    .withSystemPrompt(systemPrompt);
 
   // Register the SF 311 service
   const sf311Functions = new SF311Functions();
@@ -37,9 +106,6 @@ Always provide clear, helpful information about the cases and their status.`);
   return sessionData;
 }
 
-/**
- * Start the hosted connection to Daemo Gateway
- */
 export async function startHostedConnection(
   sessionData: SessionData,
 ): Promise<void> {
@@ -49,9 +115,6 @@ export async function startHostedConnection(
   if (!agentApiKey) {
     console.warn(
       "[Daemo] DAEMO_AGENT_API_KEY not set. Hosted connection will not start.",
-    );
-    console.warn(
-      "[Daemo] You can still use the agent endpoint with session_id parameter.",
     );
     return;
   }
@@ -70,9 +133,6 @@ export async function startHostedConnection(
   console.log("[Daemo] Hosted connection started successfully");
 }
 
-/**
- * Stop the hosted connection
- */
 export function stopHostedConnection(): void {
   if (hostedConnection) {
     hostedConnection.stop();
@@ -81,77 +141,6 @@ export function stopHostedConnection(): void {
   }
 }
 
-/**
- * Get the session data
- */
 export function getSessionData(): SessionData | null {
   return sessionData;
-}
-
-/**
- * Check if hosted connection is active
- */
-export function isHostedConnectionActive(): boolean {
-  return hostedConnection?.isActive() ?? false;
-}
-
-export function debugSessionData() {
-  const sf311Functions = new SF311Functions();
-  const builder = new DaemoBuilder().withServiceName("sf311_service");
-
-  // Register service
-  builder.registerService(sf311Functions);
-
-  // Build session data
-  const sessionData = builder.build();
-
-  // Write to file for inspection
-  fs.writeFileSync(
-    "session-data-debug.json",
-    JSON.stringify(sessionData, null, 2),
-  );
-
-  console.log("\n=== SESSION DATA DEBUG ===\n");
-  console.log(`Service Name: ${sessionData.ServiceName}`);
-  console.log(`Total Functions: ${sessionData.Functions.length}`);
-  console.log(
-    `Total Definitions: ${Object.keys(sessionData.Definitions).length}`,
-  );
-
-  console.log("\n=== FUNCTION DETAILS ===\n");
-
-  for (const func of sessionData.Functions.slice(0, 5)) {
-    // First 5 functions
-    console.log(`\nFunction: ${func.Name}`);
-    console.log(`  Description: ${func.Description}`);
-    console.log(`  Parameters (${func.Parameters.length}):`);
-
-    if (func.Parameters.length === 0) {
-      console.log("    ⚠️  NO PARAMETERS FOUND!");
-    } else {
-      for (const param of func.Parameters) {
-        console.log(`    - ${param.name}: ${JSON.stringify(param.schema)}`);
-        console.log(`      Required: ${param.required}`);
-      }
-    }
-
-    console.log(`  Return Type: ${JSON.stringify(func.ReturnType)}`);
-  }
-
-  console.log("\n=== DEFINITIONS ===\n");
-  for (const [name, schema] of Object.entries(sessionData.Definitions).slice(
-    0,
-    3,
-  )) {
-    console.log(`${name}:`, JSON.stringify(schema, null, 2));
-  }
-
-  console.log("\n✅ Debug data written to session-data-debug.json");
-
-  return sessionData;
-}
-
-// If running this file directly
-if (require.main === module) {
-  debugSessionData();
 }

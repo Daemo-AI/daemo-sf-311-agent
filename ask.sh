@@ -6,7 +6,6 @@ if [ -z "${1:-}" ]; then
   exit 1
 fi
 
-AUTH_TOKEN=$(< ./.auth_token)
 QUERY="$1"
 MAX_TOKENS="${2:-65536}"
 ROLE="$3"
@@ -17,8 +16,7 @@ TMPFILE="$(mktemp)"
 trap 'rm -f "$TMPFILE"' EXIT
 
 # Stream to stdout AND save to file
-http -A bearer -a "$AUTH_TOKEN" \
-  http://localhost:5000/agent/query-stream \
+http http://localhost:5000/agent/query-stream \
   query="$QUERY" max_tokens:="$MAX_TOKENS" role="$ROLE" analysis_mode:="$ANALYSIS_MODE" \
   | tee "$TMPFILE"
 

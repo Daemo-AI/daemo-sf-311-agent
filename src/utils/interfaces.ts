@@ -1,3 +1,14 @@
+/*
+ * =========================================================================================
+ *  CORE UTILS - DO NOT MODIFY
+ * =========================================================================================
+ *
+ * Shared interfaces and types used across the application.
+ * While you CAN add new interfaces here, it is often better to keep
+ * service-specific types within your 'src/services' modules.
+ * =========================================================================================
+ */
+
 /**
  * 311 Case Interface based on Socrata Dataset vw6y-z8j6
  */

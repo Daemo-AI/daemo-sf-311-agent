@@ -1,3 +1,27 @@
+/*
+ * =========================================================================================
+ *  EXAMPLE API CLIENT
+ * =========================================================================================
+ *
+ * WHAT IS THIS?
+ * This is a "Helper Class". It handles the nitty-gritty details of talking to an
+ * external API (in this case, the San Francisco Open Data/Socrata API).
+ *
+ * HOW DOES IT WORK?
+ * It wraps HTTP requests (using `axios`) so that your main function file doesn't
+ * get cluttered with URL building and API keys.
+ *
+ * WHY IS IT HERE?
+ * To keep your code clean and organized. The main service file (`sf311Functions.ts`)
+ * focuses on *logic* (what to do), while this file focuses on *mechanics* (how to connect).
+ *
+ * -----------------------------------------------------------------------------------------
+ *
+ * A helper class for the SF311 example service to talk to the Socrata API.
+ * You likely won't need this unless you are also working with Socrata/SF Data.
+ * =========================================================================================
+ */
+
 import axios from "axios";
 import { configDotenv } from "dotenv";
 import { GeoLocation } from "../utils/interfaces";

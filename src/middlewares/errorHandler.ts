@@ -1,3 +1,9 @@
+/*
+ * =========================================================================================
+ *  CORE MIDDLEWARE - DO NOT MODIFY
+ * =========================================================================================
+ */
+
 import { Request, Response, NextFunction } from "express";
 
 export function errorHandler(

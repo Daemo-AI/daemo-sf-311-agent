@@ -1,38 +1,32 @@
+/*
+ * =========================================================================================
+ *  CORE ENGINE FILE - DO NOT MODIFY
+ * =========================================================================================
+ *
+ * This file sets up the Express server, middleware, and routes.
+ * It initializes the Daemo Engine and connects your Agent to the platform.
+ *
+ * For most use cases, you do NOT need to touch this file.
+ * Customization should happen in the 'src/services' directory.
+ * =========================================================================================
+ */
+
 import express, { Request, Response } from "express";
 import cors from "cors";
 import morgan from "morgan";
 import { errorHandler } from "./middlewares/errorHandler";
 import { configDotenv } from "dotenv";
-import { createClient } from "@supabase/supabase-js";
-import authController from "./controllers/authController";
-import { authMiddleware } from "./middlewares/authMiddleware";
 import {
   initializeDaemoService,
   startHostedConnection,
 } from "./services/daemoService";
 import agentController from "./controllers/agentController";
-import { SF311Functions } from "./services/sf311Functions";
-
+ 
 // Load environment variables
 configDotenv();
 
-// Initialize Supabase client
-export const supabase = createClient(
-  process.env.SUPABASE_URL as string,
-  process.env.SUPABASE_KEY as string,
-);
-
 async function startServer() {
   try {
-    // Test Supabase connection
-    const { error } = await supabase.from("health_check").select("*").limit(1);
-
-    if (error) {
-      throw new Error(`Supabase connection error: ${error.message}`);
-    }
-
-    console.log("Connected to Supabase successfully!");
-
     // Initialize Daemo Service
     console.log("\n=== Initializing Daemo Service ===");
     const sessionData = initializeDaemoService();
@@ -61,16 +55,8 @@ async function startServer() {
 
     // Define the root path with a greeting message
     app.get("/", (_: Request, res: Response) => {
-      res.json({ message: "Welcome to Daemo CRM!" });
+      res.json({ message: "Welcome to Daemo AI Agent Engine Boilerplate Template!" });
     });
-
-    // --- PUBLIC ROUTES ---
-    app.post("/auth/register", authController.register);
-    app.post("/auth/login", authController.login);
-
-    // --- PROTECTED ROUTES ---
-    // Apply auth middleware to all routes defined after this line
-    app.use(authMiddleware);
 
     // Define test endpoint with a greeting message
     app.get("/hello/:name", (req: Request, res: Response) => {

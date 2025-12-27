@@ -1,3 +1,19 @@
+/*
+ * =========================================================================================
+ *  CORE ENGINE CONTROLLER - DO NOT MODIFY
+ * =========================================================================================
+ *
+ * This controller handles the low-level communication with the Daemo Agent API.
+ * It manages:
+ * - Query processing
+ * - Streaming responses
+ * - Thread management (history)
+ * - LLM context and configuration
+ *
+ * All business logic and custom tools should be defined in 'src/services'.
+ * =========================================================================================
+ */
+
 /**
  * Agent Controller - Handles AI agent queries and thread management
  */
@@ -5,7 +21,6 @@
 import { Request, Response } from "express";
 import { DaemoClient, StorageConfig } from "daemo-engine";
 import { getSessionData } from "../services/daemoService";
-import { AuthenticatedRequest } from "../middlewares/authMiddleware";
 
 // Lazy-load the client - don't instantiate until first use
 let daemoClient: DaemoClient | null = null;
@@ -28,18 +43,10 @@ function getDaemoClient(): DaemoClient {
 
 // --- FIX: Centralize StorageConfig creation ---
 function buildStorageConfig(): StorageConfig | undefined {
-  if (process.env.MONGODB_URI && process.env.DB_NAME) {
-    return {
-      mongodb: {
-        connectionString: process.env.MONGODB_URI,
-        databaseName: process.env.DB_NAME,
-      },
-    };
-  }
   // If no persistent storage is configured, we explicitly return undefined.
   // This helps catch configuration errors early.
   console.warn(
-    "[Agent Controller] MONGODB_URI and/or DB_NAME not set. Agent memory will not be persistent.",
+    "[Agent Controller] No storage configured. Agent memory will not be persistent.",
   );
   return undefined;
 }
@@ -80,12 +87,9 @@ function buildLlmConfig(max_tokens?: number) {
  * Process a natural language query with the AI agent
  * POST /agent/query
  */
-const processQuery = async (
-  req: AuthenticatedRequest,
-  res: Response,
-): Promise<void> => {
+const processQuery = async (req: Request, res: Response): Promise<void> => {
   try {
-    const role = req.user?.role;
+    const role = undefined;
     const { query, thread_id, context, max_tokens, analysis_mode } = req.body;
 
     if (!query) {
@@ -107,15 +111,6 @@ const processQuery = async (
 
     // --- FIX: Use the helper to build storage config ---
     const storageConfig = buildStorageConfig();
-
-    // --- FIX: Add a check to prevent running without persistent storage ---
-    if (!storageConfig) {
-      res.status(500).json({
-        error:
-          "Server configuration error: Persistent storage for agent memory is not configured.",
-      });
-      return;
-    }
 
     // Get the client (will be created on first call)
     const client = getDaemoClient();
@@ -151,8 +146,8 @@ const processQuery = async (
  * Process a natural language query with the AI agent and stream the response
  * POST /agent/query-stream
  */
-const processQueryStreamed = (req: AuthenticatedRequest, res: Response) => {
-  const role = req.user?.role;
+const processQueryStreamed = (req: Request, res: Response) => {
+  const role = undefined;
   const { query, thread_id, context, max_tokens, analysis_mode } = req.body;
 
   if (!query) {
@@ -177,16 +172,6 @@ const processQueryStreamed = (req: AuthenticatedRequest, res: Response) => {
 
   // Prepare LLM config from environment
   const llmConfig = buildLlmConfig(max_tokens);
-
-  // Prepare storage config from environment
-  const storageConfig = buildStorageConfig();
-  if (!storageConfig) {
-    res.status(500).json({
-      error:
-        "Server configuration error: Persistent storage for agent memory is not configured.",
-    });
-    return;
-  }
 
   // Get the client (will be created on first call)
   const client = getDaemoClient();
@@ -216,7 +201,6 @@ const processQueryStreamed = (req: AuthenticatedRequest, res: Response) => {
         threadId: thread_id,
         sessionId: sessionData.ServiceName,
         llmConfig,
-        storageConfig,
         role,
         contextJson: context ? JSON.stringify(context) : undefined,
         analysisMode: analysis_mode,
@@ -248,10 +232,6 @@ const createThread = async (req: Request, res: Response): Promise<void> => {
 
     // Prepare storage config
     const storageConfig = buildStorageConfig();
-    if (!storageConfig) {
-      res.status(500).json({ error: "Storage not configured." });
-      return;
-    }
 
     const client = getDaemoClient();
     const result = await client.createThread(
@@ -287,10 +267,6 @@ const listThreads = async (req: Request, res: Response): Promise<void> => {
 
     // Prepare storage config
     const storageConfig = buildStorageConfig();
-    if (!storageConfig) {
-      res.status(500).json({ error: "Storage not configured." });
-      return;
-    }
 
     const client = getDaemoClient();
     const result = await client.listThreads(
@@ -322,10 +298,6 @@ const getThread = async (req: Request, res: Response): Promise<void> => {
 
     // Prepare storage config
     const storageConfig = buildStorageConfig();
-    if (!storageConfig) {
-      res.status(500).json({ error: "Storage not configured." });
-      return;
-    }
 
     const client = getDaemoClient();
     const result = await client.getThread(threadId, storageConfig);
@@ -355,10 +327,6 @@ const deleteThread = async (req: Request, res: Response): Promise<void> => {
 
     // Prepare storage config
     const storageConfig = buildStorageConfig();
-    if (!storageConfig) {
-      res.status(500).json({ error: "Storage not configured." });
-      return;
-    }
 
     const client = getDaemoClient();
     const result = await client.deleteThread(threadId, storageConfig);
