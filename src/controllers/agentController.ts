@@ -19,7 +19,7 @@
  */
 
 import { Request, Response } from "express";
-import { DaemoClient, StorageConfig } from "daemo-engine";
+import { DaemoClient, LlmConfig } from "daemo-engine";
 import { getSessionData } from "../services/daemoService";
 
 // Lazy-load the client - don't instantiate until first use
@@ -27,7 +27,6 @@ let daemoClient: DaemoClient | null = null;
 
 function getDaemoClient(): DaemoClient {
   if (!daemoClient) {
-    // --- FIX: Use DAEMO_GATEWAY_URL consistent with daemoService.ts for clarity ---
     const agentUrl = process.env.DAEMO_GATEWAY_URL || "localhost:50052";
     console.log(
       "[Agent Controller] Initializing DaemoClient with URL:",
@@ -41,19 +40,20 @@ function getDaemoClient(): DaemoClient {
   return daemoClient;
 }
 
-// --- FIX: Centralize StorageConfig creation ---
-function buildStorageConfig(): StorageConfig | undefined {
-  // If no persistent storage is configured, we explicitly return undefined.
-  // This helps catch configuration errors early.
-  console.warn(
-    "[Agent Controller] No storage configured. Agent memory will not be persistent.",
-  );
-  return undefined;
-}
+// Helper to build LLM config only if environment variables are present
+function buildLlmConfig(max_tokens?: number): LlmConfig | undefined {
+  const provider = process.env.LLM_PROVIDER;
 
-function buildLlmConfig(max_tokens?: number) {
-  const provider = process.env.LLM_PROVIDER || "gemini";
-  const llmConfig: any = {
+  // If no provider is set in the environment, return undefined.
+  // This tells the Daemo Engine to use its internal default (Phase 1) configuration.
+  if (!provider) {
+    console.log(
+      "[Agent Controller] No LLM_PROVIDER set. Using Engine defaults.",
+    );
+    return undefined;
+  }
+
+  const llmConfig: LlmConfig = {
     provider,
     maxTokens: max_tokens,
   };
@@ -74,9 +74,8 @@ function buildLlmConfig(max_tokens?: number) {
       llmConfig.apiKey = process.env.OPENAI_API_KEY;
       break;
     default:
-      // Optional: log a warning if you support custom providers
-      console.warn(
-        `[Agent Controller] No explicit API key mapping for provider '${provider}'.`,
+      console.log(
+        `[Agent Controller] Using provider '${provider}'. API Key will be handled by environment or Engine.`,
       );
   }
 
@@ -106,11 +105,8 @@ const processQuery = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Prepare LLM config from environment
+    // Prepare LLM config (undefined if no env vars set)
     const llmConfig = buildLlmConfig(max_tokens);
-
-    // --- FIX: Use the helper to build storage config ---
-    const storageConfig = buildStorageConfig();
 
     // Get the client (will be created on first call)
     const client = getDaemoClient();
@@ -119,8 +115,7 @@ const processQuery = async (req: Request, res: Response): Promise<void> => {
     const result = await client.processQuery(query, {
       threadId: thread_id,
       sessionId: sessionData.ServiceName,
-      llmConfig,
-      storageConfig,
+      llmConfig, // If undefined, Engine uses default
       role,
       contextJson: context ? JSON.stringify(context) : undefined,
       analysisMode: analysis_mode,
@@ -170,7 +165,7 @@ const processQueryStreamed = (req: Request, res: Response) => {
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
 
-  // Prepare LLM config from environment
+  // Prepare LLM config (undefined if no env vars set)
   const llmConfig = buildLlmConfig(max_tokens);
 
   // Get the client (will be created on first call)
@@ -200,7 +195,7 @@ const processQueryStreamed = (req: Request, res: Response) => {
       {
         threadId: thread_id,
         sessionId: sessionData.ServiceName,
-        llmConfig,
+        llmConfig, // If undefined, Engine uses default
         role,
         contextJson: context ? JSON.stringify(context) : undefined,
         analysisMode: analysis_mode,
@@ -230,14 +225,9 @@ const createThread = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Prepare storage config
-    const storageConfig = buildStorageConfig();
-
     const client = getDaemoClient();
-    const result = await client.createThread(
-      sessionData.ServiceName,
-      storageConfig,
-    );
+
+    const result = await client.createThread(sessionData.ServiceName);
 
     res.status(201).json({
       success: result.success,
@@ -265,14 +255,9 @@ const listThreads = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Prepare storage config
-    const storageConfig = buildStorageConfig();
-
     const client = getDaemoClient();
-    const result = await client.listThreads(
-      sessionData.ServiceName,
-      storageConfig,
-    );
+
+    const result = await client.listThreads(sessionData.ServiceName);
 
     res.status(200).json({
       success: result.success,
@@ -296,11 +281,9 @@ const getThread = async (req: Request, res: Response): Promise<void> => {
   try {
     const { threadId } = req.params;
 
-    // Prepare storage config
-    const storageConfig = buildStorageConfig();
-
     const client = getDaemoClient();
-    const result = await client.getThread(threadId, storageConfig);
+
+    const result = await client.getThread(threadId);
 
     res.status(200).json({
       success: result.success,
@@ -325,11 +308,9 @@ const deleteThread = async (req: Request, res: Response): Promise<void> => {
   try {
     const { threadId } = req.params;
 
-    // Prepare storage config
-    const storageConfig = buildStorageConfig();
-
     const client = getDaemoClient();
-    const result = await client.deleteThread(threadId, storageConfig);
+
+    const result = await client.deleteThread(threadId);
 
     res.status(200).json({
       success: result.success,
