@@ -19,7 +19,7 @@
  */
 
 import { Request, Response } from "express";
-import { DaemoClient, StorageConfig } from "daemo-engine";
+import { DaemoClient, StorageConfig, LlmConfig } from "daemo-engine";
 import { getSessionData } from "../services/daemoService";
 
 // Lazy-load the client - don't instantiate until first use
@@ -27,7 +27,6 @@ let daemoClient: DaemoClient | null = null;
 
 function getDaemoClient(): DaemoClient {
   if (!daemoClient) {
-    // --- FIX: Use DAEMO_GATEWAY_URL consistent with daemoService.ts for clarity ---
     const agentUrl = process.env.DAEMO_GATEWAY_URL || "localhost:50052";
     console.log(
       "[Agent Controller] Initializing DaemoClient with URL:",
@@ -41,7 +40,7 @@ function getDaemoClient(): DaemoClient {
   return daemoClient;
 }
 
-// --- FIX: Centralize StorageConfig creation ---
+// Helper to build storage config
 function buildStorageConfig(): StorageConfig | undefined {
   // If no persistent storage is configured, we explicitly return undefined.
   // This helps catch configuration errors early.
@@ -51,9 +50,20 @@ function buildStorageConfig(): StorageConfig | undefined {
   return undefined;
 }
 
-function buildLlmConfig(max_tokens?: number) {
-  const provider = process.env.LLM_PROVIDER || "gemini";
-  const llmConfig: any = {
+// Helper to build LLM config only if environment variables are present
+function buildLlmConfig(max_tokens?: number): LlmConfig | undefined {
+  const provider = process.env.LLM_PROVIDER;
+
+  // If no provider is set in the environment, return undefined.
+  // This tells the Daemo Engine to use its internal default (Phase 1) configuration.
+  if (!provider) {
+    console.log(
+      "[Agent Controller] No LLM_PROVIDER set. Using Engine defaults.",
+    );
+    return undefined;
+  }
+
+  const llmConfig: LlmConfig = {
     provider,
     maxTokens: max_tokens,
   };
@@ -74,9 +84,9 @@ function buildLlmConfig(max_tokens?: number) {
       llmConfig.apiKey = process.env.OPENAI_API_KEY;
       break;
     default:
-      // Optional: log a warning if you support custom providers
-      console.warn(
-        `[Agent Controller] No explicit API key mapping for provider '${provider}'.`,
+      // If using a custom provider or if the engine handles the key for this provider
+      console.log(
+        `[Agent Controller] Using provider '${provider}'. API Key will be handled by environment or Engine.`,
       );
   }
 
@@ -87,10 +97,7 @@ function buildLlmConfig(max_tokens?: number) {
  * Process a natural language query with the AI agent
  * POST /agent/query
  */
-const processQuery = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+const processQuery = async (req: Request, res: Response): Promise<void> => {
   try {
     const role = undefined;
     const { query, thread_id, context, max_tokens, analysis_mode } = req.body;
@@ -109,10 +116,10 @@ const processQuery = async (
       return;
     }
 
-    // Prepare LLM config from environment
+    // Prepare LLM config (undefined if no env vars set)
     const llmConfig = buildLlmConfig(max_tokens);
 
-    // --- FIX: Use the helper to build storage config ---
+    // Prepare storage config
     const storageConfig = buildStorageConfig();
 
     // Get the client (will be created on first call)
@@ -122,7 +129,7 @@ const processQuery = async (
     const result = await client.processQuery(query, {
       threadId: thread_id,
       sessionId: sessionData.ServiceName,
-      llmConfig,
+      llmConfig, // If undefined, Engine uses default
       storageConfig,
       role,
       contextJson: context ? JSON.stringify(context) : undefined,
@@ -173,10 +180,10 @@ const processQueryStreamed = (req: Request, res: Response) => {
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
 
-  // Prepare LLM config from environment
+  // Prepare LLM config (undefined if no env vars set)
   const llmConfig = buildLlmConfig(max_tokens);
 
-  // Prepare storage config from environment
+  // Prepare storage config
   const storageConfig = buildStorageConfig();
 
   // Get the client (will be created on first call)
@@ -206,7 +213,7 @@ const processQueryStreamed = (req: Request, res: Response) => {
       {
         threadId: thread_id,
         sessionId: sessionData.ServiceName,
-        llmConfig,
+        llmConfig, // If undefined, Engine uses default
         storageConfig,
         role,
         contextJson: context ? JSON.stringify(context) : undefined,
