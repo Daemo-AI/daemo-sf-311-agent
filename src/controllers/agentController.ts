@@ -19,7 +19,7 @@
  */
 
 import { Request, Response } from "express";
-import { DaemoClient, StorageConfig, LlmConfig } from "daemo-engine";
+import { DaemoClient, LlmConfig } from "daemo-engine";
 import { getSessionData } from "../services/daemoService";
 
 // Lazy-load the client - don't instantiate until first use
@@ -38,16 +38,6 @@ function getDaemoClient(): DaemoClient {
     });
   }
   return daemoClient;
-}
-
-// Helper to build storage config
-function buildStorageConfig(): StorageConfig | undefined {
-  // If no persistent storage is configured, we explicitly return undefined.
-  // This helps catch configuration errors early.
-  console.warn(
-    "[Agent Controller] No storage configured. Agent memory will not be persistent.",
-  );
-  return undefined;
 }
 
 // Helper to build LLM config only if environment variables are present
@@ -84,7 +74,6 @@ function buildLlmConfig(max_tokens?: number): LlmConfig | undefined {
       llmConfig.apiKey = process.env.OPENAI_API_KEY;
       break;
     default:
-      // If using a custom provider or if the engine handles the key for this provider
       console.log(
         `[Agent Controller] Using provider '${provider}'. API Key will be handled by environment or Engine.`,
       );
@@ -119,9 +108,6 @@ const processQuery = async (req: Request, res: Response): Promise<void> => {
     // Prepare LLM config (undefined if no env vars set)
     const llmConfig = buildLlmConfig(max_tokens);
 
-    // Prepare storage config
-    const storageConfig = buildStorageConfig();
-
     // Get the client (will be created on first call)
     const client = getDaemoClient();
 
@@ -130,7 +116,6 @@ const processQuery = async (req: Request, res: Response): Promise<void> => {
       threadId: thread_id,
       sessionId: sessionData.ServiceName,
       llmConfig, // If undefined, Engine uses default
-      storageConfig,
       role,
       contextJson: context ? JSON.stringify(context) : undefined,
       analysisMode: analysis_mode,
@@ -183,9 +168,6 @@ const processQueryStreamed = (req: Request, res: Response) => {
   // Prepare LLM config (undefined if no env vars set)
   const llmConfig = buildLlmConfig(max_tokens);
 
-  // Prepare storage config
-  const storageConfig = buildStorageConfig();
-
   // Get the client (will be created on first call)
   const client = getDaemoClient();
 
@@ -214,7 +196,6 @@ const processQueryStreamed = (req: Request, res: Response) => {
         threadId: thread_id,
         sessionId: sessionData.ServiceName,
         llmConfig, // If undefined, Engine uses default
-        storageConfig,
         role,
         contextJson: context ? JSON.stringify(context) : undefined,
         analysisMode: analysis_mode,
@@ -244,13 +225,12 @@ const createThread = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Prepare storage config
-    const storageConfig = buildStorageConfig();
-
     const client = getDaemoClient();
+
+    // We pass undefined for storageConfig, letting the backend use the Agent's DB settings
     const result = await client.createThread(
       sessionData.ServiceName,
-      storageConfig,
+      undefined,
     );
 
     res.status(201).json({
@@ -279,14 +259,10 @@ const listThreads = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Prepare storage config
-    const storageConfig = buildStorageConfig();
-
     const client = getDaemoClient();
-    const result = await client.listThreads(
-      sessionData.ServiceName,
-      storageConfig,
-    );
+
+    // We pass undefined for storageConfig, letting the backend use the Agent's DB settings
+    const result = await client.listThreads(sessionData.ServiceName, undefined);
 
     res.status(200).json({
       success: result.success,
@@ -310,11 +286,10 @@ const getThread = async (req: Request, res: Response): Promise<void> => {
   try {
     const { threadId } = req.params;
 
-    // Prepare storage config
-    const storageConfig = buildStorageConfig();
-
     const client = getDaemoClient();
-    const result = await client.getThread(threadId, storageConfig);
+
+    // We pass undefined for storageConfig, letting the backend use the Agent's DB settings
+    const result = await client.getThread(threadId, undefined);
 
     res.status(200).json({
       success: result.success,
@@ -339,11 +314,10 @@ const deleteThread = async (req: Request, res: Response): Promise<void> => {
   try {
     const { threadId } = req.params;
 
-    // Prepare storage config
-    const storageConfig = buildStorageConfig();
-
     const client = getDaemoClient();
-    const result = await client.deleteThread(threadId, storageConfig);
+
+    // We pass undefined for storageConfig, letting the backend use the Agent's DB settings
+    const result = await client.deleteThread(threadId, undefined);
 
     res.status(200).json({
       success: result.success,
