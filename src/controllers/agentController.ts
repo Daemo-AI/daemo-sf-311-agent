@@ -227,11 +227,7 @@ const createThread = async (req: Request, res: Response): Promise<void> => {
 
     const client = getDaemoClient();
 
-    // We pass undefined for storageConfig, letting the backend use the Agent's DB settings
-    const result = await client.createThread(
-      sessionData.ServiceName,
-      undefined,
-    );
+    const result = await client.createThread(sessionData.ServiceName);
 
     res.status(201).json({
       success: result.success,
@@ -261,8 +257,7 @@ const listThreads = async (req: Request, res: Response): Promise<void> => {
 
     const client = getDaemoClient();
 
-    // We pass undefined for storageConfig, letting the backend use the Agent's DB settings
-    const result = await client.listThreads(sessionData.ServiceName, undefined);
+    const result = await client.listThreads(sessionData.ServiceName);
 
     res.status(200).json({
       success: result.success,
@@ -288,8 +283,7 @@ const getThread = async (req: Request, res: Response): Promise<void> => {
 
     const client = getDaemoClient();
 
-    // We pass undefined for storageConfig, letting the backend use the Agent's DB settings
-    const result = await client.getThread(threadId, undefined);
+    const result = await client.getThread(threadId);
 
     res.status(200).json({
       success: result.success,
@@ -316,8 +310,7 @@ const deleteThread = async (req: Request, res: Response): Promise<void> => {
 
     const client = getDaemoClient();
 
-    // We pass undefined for storageConfig, letting the backend use the Agent's DB settings
-    const result = await client.deleteThread(threadId, undefined);
+    const result = await client.deleteThread(threadId);
 
     res.status(200).json({
       success: result.success,
