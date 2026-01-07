@@ -21,7 +21,7 @@ import {
   startHostedConnection,
 } from "./services/daemoService";
 import agentController from "./controllers/agentController";
- 
+
 // Load environment variables
 configDotenv();
 
@@ -55,7 +55,9 @@ async function startServer() {
 
     // Define the root path with a greeting message
     app.get("/", (_: Request, res: Response) => {
-      res.json({ message: "Welcome to Daemo AI Agent Engine Boilerplate Template!" });
+      res.json({
+        message: "Welcome to Daemo AI Agent Engine Boilerplate Template!",
+      });
     });
 
     // Define test endpoint with a greeting message
