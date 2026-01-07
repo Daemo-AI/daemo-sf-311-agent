@@ -1,44 +1,41 @@
 // src/services/daemoService.ts
-
 import { DaemoBuilder, DaemoHostedConnection, SessionData } from "daemo-engine";
 import { SF311Functions } from "./sf311Functions";
-import { FBICrimeFunctions } from "./fbiFunctions"; // <--- IMPORT THIS
+import { FBICrimeFunctions } from "./fbiFunctions";
 
 let hostedConnection: DaemoHostedConnection | null = null;
 let sessionData: SessionData | null = null;
 
 export function initializeDaemoService(): SessionData {
-  console.log("[Daemo] Initializing Daemo service...");
-
-  // Update System Prompt to include FBI capabilities
   const builder = new DaemoBuilder().withServiceName("sf_311_service")
-    .withSystemPrompt(`You are an intelligent government data assistant.
+    .withSystemPrompt(`You are an intelligent data agent with COMPLETE access to the FBI Crime Data Explorer (CDE) API and SF 311 data.
 
-You have access to two major datasets:
-1. **SF 311**: Live service requests from San Francisco (potholes, graffiti, etc.).
-2. **FBI Crime Data Explorer (CDE)**: National and State-level crime statistics, including NIBRS data, Hate Crimes, and Arrest records.
+**FBI CDE INSTRUCTIONS:**
 
-**Guidelines:**
-- When a user asks about local SF issues (cleanliness, infrastructure), use the SF 311 tools.
-- When a user asks about crime rates, violence, arrests, or hate crimes (either in SF specifically or nationally), use the FBI Crime tools.
-- You can combine data! For example, if asked about safety in SF, you might look up 311 graffiti reports AND FBI crime stats for California.
-- When using FBI tools, always check the State Abbreviation (e.g., 'CA' for California).
-- For FBI Crime trends, use the 'summarized' or 'nibrs' tools to get historical data.
+1.  **Agency Discovery (The Key Step):**
+    - Almost all granular data requires an **ORI** (Agency Identifier).
+    - If the user asks about a city (e.g., "Garden City"), use \`getAgencies\` with the state abbreviation (e.g., "KS") first.
+    - **CRITICAL:** Use \`execute_code\` to filter the full list of agencies returned to find the specific ORI(s) you need. Do not guess ORIs.
 
-Always provide clear, helpful, data-backed answers.`);
+2.  **Choosing the Right Tool:**
+    - **General Crime Trends (1960+):** Use \`getSummarizedData\`. (Code: 'V'iolent, 'HOM'icide, 'P'roperty).
+    - **Detailed Incidents (1991+):** Use \`getNIBRSData\`. (Code: '09A' Murder, '13A' Assault).
+    - **Arrests:** Use \`getArrestData\`. (Code: '11' Murder, 'all' Total).
+    - **Officer Counts:** Use \`getPoliceEmployment\`.
+    - **Hate Crimes:** Use \`getHateCrimeData\`.
 
-  // 1. Register the SF 311 service
-  const sf311Functions = new SF311Functions();
-  builder.registerService(sf311Functions);
+3.  **Data Comparison Strategy:**
+    - If comparing multiple cities (e.g., Garden City vs Dodge City), fetch data for **each** ORI sequentially or in parallel.
+    - Use \`execute_code\` to merge the datasets into a single comparison table (Year | City A | City B).
 
-  // 2. Register the FBI Crime service
-  const fbiFunctions = new FBICrimeFunctions();
-  builder.registerService(fbiFunctions);
+**SF 311 INSTRUCTIONS:**
+- Use for local San Francisco non-emergency requests only.`);
+
+  builder.registerService(new SF311Functions());
+  builder.registerService(new FBICrimeFunctions());
 
   sessionData = builder.build();
   sessionData.Port = 50052;
-  console.log(`[Daemo] Registered ${sessionData.Functions.length} functions`);
-
   return sessionData;
 }
 

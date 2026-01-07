@@ -4,14 +4,19 @@ import axios, { AxiosInstance } from "axios";
 import { z } from "zod";
 import { configDotenv } from "dotenv";
 import {
-  GetAgenciesByStateInput,
-  GetSummarizedDataInput,
-  GetNationalNibrsInput,
+  GetAgenciesInput,
+  GetSummarizedCrimeInput,
+  GetNIBRSCrimeInput,
+  GetArrestInput,
+  GetNIBRSEstimationInput,
   GetHateCrimeInput,
-  GetArrestDataInput,
-  AgencyOutputSchema,
-  TrendOutputSchema,
-  HateCrimeOutputSchema,
+  GetSupplementalInput,
+  GetSHRInput,
+  GetPEInput,
+  GetParticipationInput,
+  AgencyListOutput,
+  TrendOutput,
+  DetailedStatsOutput,
 } from "./fbi.schemas";
 
 configDotenv();
@@ -23,260 +28,373 @@ export class FBICrimeFunctions {
 
   constructor() {
     const apiKey = process.env.FBI_API_KEY;
-    if (!apiKey) {
-      console.warn(
-        "⚠️ Warning: FBI_API_KEY is missing. Requests will likely fail.",
-      );
-    }
-
     this.client = axios.create({
       baseURL: FBI_BASE_URL,
       params: { API_KEY: apiKey },
     });
   }
 
-  /**
-   * Helper to transform the nested dictionary response from FBI (Year -> Value)
-   * into a cleaner Array of Objects for the AI to read.
-   */
-  private transformTrendData(
+  // --- Helper: Transform simple trend data ---
+  private transformTrend(
     title: string,
     actuals: Record<string, any>,
-    rates?: Record<string, any>,
-  ): z.infer<typeof TrendOutputSchema> {
-    // The API returns nested keys like { "Virginia Offenses": { "2020": 123 } }
-    // We need to flatten this.
+    rates: Record<string, any> = {},
+  ): z.infer<typeof TrendOutput> {
     const dataPoints: any[] = [];
+    const mainKey = Object.keys(actuals)[0] || "";
+    const rateKey = Object.keys(rates)[0] || "";
+    const yearMap = actuals[mainKey] || {};
+    const rateMap = rates[rateKey] || {};
 
-    // Find the primary key in actuals (e.g. "Virginia Offenses")
-    const actualKeys = Object.keys(actuals);
-    if (actualKeys.length === 0) return { title, data: [] };
+    for (const [period, count] of Object.entries(yearMap)) {
+      if (count !== null) {
+        dataPoints.push({
+          period,
+          count: Number(count),
+          rate: rateMap[period] ? Number(rateMap[period]) : null,
+        });
+      }
+    }
 
-    const primaryKey = actualKeys[0];
-    const yearMap = actuals[primaryKey] || {};
-
-    const rateKey = rates ? Object.keys(rates)[0] : null;
-    const rateMap = rateKey && rates ? rates[rateKey] : {};
-
-    Object.keys(yearMap).forEach((year) => {
-      dataPoints.push({
-        year: year,
-        count: yearMap[year],
-        rate: rateMap[year] || null,
-      });
+    // Sort
+    dataPoints.sort((a, b) => {
+      if (a.period.includes("-")) {
+        const [ma, ya] = a.period.split("-").map(Number);
+        const [mb, yb] = b.period.split("-").map(Number);
+        return ya - yb || ma - mb;
+      }
+      return parseInt(a.period) - parseInt(b.period);
     });
 
-    // Sort by year
-    dataPoints.sort((a, b) => parseInt(a.year) - parseInt(b.year));
-
-    return {
-      title: primaryKey,
-      data: dataPoints,
-    };
+    return { title: mainKey || title, data: dataPoints, coverage: null };
   }
 
   @DaemoFunction({
     description:
-      "Find Law Enforcement Agencies (Police Departments) within a specific US State. Returns the ORI (Agency ID) needed for specific agency queries.",
-    tags: ["fbi", "agency", "police"],
-    category: "FBICrime",
-    inputSchema: GetAgenciesByStateInput,
-    outputSchema: AgencyOutputSchema,
+      "Get all Law Enforcement Agencies in a state. Returns ORI, Name, and Type. Mandatory first step for agency-specific queries.",
+    tags: ["fbi", "agency"],
+    category: "FBI",
+    inputSchema: GetAgenciesInput,
+    outputSchema: AgencyListOutput,
   })
-  async getAgenciesByState(
-    input: z.infer<typeof GetAgenciesByStateInput>,
-  ): Promise<z.infer<typeof AgencyOutputSchema>> {
+  async getAgencies(input: z.infer<typeof GetAgenciesInput>) {
     try {
-      const response = await this.client.get(
+      const res = await this.client.get(
         `/agency/byStateAbbr/${input.stateAbbr}`,
       );
+      // Flatten { "COUNTY": [agencies...] }
+      const flattened = Object.values(res.data).flat();
+      return flattened.map((a: any) => ({
+        ori: a.ori,
+        agency_name: a.agency_name,
+        agency_type_name: a.agency_type_name,
+        state_abbr: a.state_abbr,
+        latitude: a.latitude,
+        longitude: a.longitude,
+        is_nibrs: a.is_nibrs,
+      }));
+    } catch (e: any) {
+      throw new Error(e.message);
+    }
+  }
 
-      // API returns { "COUNTY_NAME": [ {agency...} ] }
-      // Flatten this into a single list of agencies
-      const allAgencies: any[] = [];
-      Object.values(response.data).forEach((countyAgencies: any) => {
-        if (Array.isArray(countyAgencies)) {
-          allAgencies.push(...countyAgencies);
-        }
+  @DaemoFunction({
+    description:
+      "Get Summarized (SRS) Crime Data. Covers 1960-Present. Ideal for long-term trends of major crimes (Homicide, Robbery, etc).",
+    tags: ["fbi", "srs", "summary"],
+    category: "FBI",
+    inputSchema: GetSummarizedCrimeInput,
+    outputSchema: TrendOutput,
+  })
+  async getSummarizedData(input: z.infer<typeof GetSummarizedCrimeInput>) {
+    let path = `/summarized/${input.level}`;
+    if (input.level === "state") path += `/${input.stateAbbr}`;
+    if (input.level === "agency") path += `/${input.ori}`;
+    path += `/${input.offense}`;
+
+    try {
+      const res = await this.client.get(path, {
+        params: { from: `01-${input.fromYear}`, to: `12-${input.toYear}` },
       });
-
-      return allAgencies
-        .map((a) => ({
-          ori: a.ori,
-          agency_name: a.agency_name,
-          agency_type_name: a.agency_type_name,
-          state_abbr: a.state_abbr,
-          latitude: a.latitude,
-          longitude: a.longitude,
-        }))
-        .slice(0, 50); // Limit to 50 to avoid token overflow
-    } catch (error: any) {
-      throw new Error(
-        `FBI API Error: ${error.response?.data?.message || error.message}`,
+      return this.transformTrend(
+        `SRS: ${input.offense}`,
+        res.data.offenses?.actuals || {},
+        res.data.offenses?.rates || {},
       );
+    } catch (e: any) {
+      return { title: "No Data", data: [] };
     }
   }
 
   @DaemoFunction({
     description:
-      "Get historical trend data (Summarized SRS) for a specific offense in a specific state. Ideal for seeing crime rates over the last 10-20 years. Use 'V' for Violent Crime and 'P' for Property Crime.",
-    tags: ["fbi", "stats", "historical"],
-    category: "FBICrime",
-    inputSchema: GetSummarizedDataInput,
-    outputSchema: TrendOutputSchema,
+      "Get NIBRS Incident Data. Detailed data usually available from 1991+. Covers specific offense codes like '13A' (Aggravated Assault).",
+    tags: ["fbi", "nibrs"],
+    category: "FBI",
+    inputSchema: GetNIBRSCrimeInput,
+    outputSchema: TrendOutput,
   })
-  async getStateCrimeTrends(
-    input: z.infer<typeof GetSummarizedDataInput>,
-  ): Promise<z.infer<typeof TrendOutputSchema>> {
+  async getNIBRSData(input: z.infer<typeof GetNIBRSCrimeInput>) {
+    let path = `/nibrs/${input.level}`;
+    if (input.level === "state") path += `/${input.stateAbbr}`;
+    if (input.level === "agency") path += `/${input.ori}`;
+    path += `/${input.offense}`;
+
     try {
-      // The API expects 'from' and 'to' as integers for this endpoint?
-      // Docs say mm-yyyy usually, but let's try constructing ranges based on example usage.
-      // Based on docs: ?from=01-YYYY&to=12-YYYY covers the full year.
-      const from = `01-${input.fromYear}`;
-      const to = `12-${input.toYear}`;
-
-      const response = await this.client.get(
-        `/summarized/state/${input.stateAbbr}/${input.offense}`,
-        {
-          params: { from, to },
+      const res = await this.client.get(path, {
+        params: {
+          from: `01-${input.fromYear}`,
+          to: `12-${input.toYear}`,
+          type: "counts",
         },
+      });
+      return this.transformTrend(
+        `NIBRS: ${input.offense}`,
+        res.data.offenses?.actuals || {},
+        res.data.offenses?.rates || {},
       );
-
-      const actuals = response.data.offenses?.actuals || {};
-      const rates = response.data.offenses?.rates || {};
-
-      return this.transformTrendData(
-        `Crime Trends: ${input.offense} in ${input.stateAbbr}`,
-        actuals,
-        rates,
-      );
-    } catch (error: any) {
-      throw new Error(
-        `FBI API Error: ${error.response?.data?.message || error.message}`,
-      );
+    } catch (e: any) {
+      return { title: "No Data", data: [] };
     }
   }
 
   @DaemoFunction({
     description:
-      "Get detailed National NIBRS crime statistics for specific offenses (e.g., Aggravated Assault, Robbery). Returns counts and clearance rates.",
-    tags: ["fbi", "national", "nibrs"],
-    category: "FBICrime",
-    inputSchema: GetNationalNibrsInput,
-    outputSchema: TrendOutputSchema,
+      "Get Arrest Data. Counts of arrests made. Use 'all' for total arrests, or specific codes like '11' for Murder arrests.",
+    tags: ["fbi", "arrest"],
+    category: "FBI",
+    inputSchema: GetArrestInput,
+    outputSchema: TrendOutput,
   })
-  async getNationalCrimeStats(
-    input: z.infer<typeof GetNationalNibrsInput>,
-  ): Promise<z.infer<typeof TrendOutputSchema>> {
+  async getArrestData(input: z.infer<typeof GetArrestInput>) {
+    let path = `/arrest/${input.level}`;
+    if (input.level === "state") path += `/${input.stateAbbr}`;
+    if (input.level === "agency") path += `/${input.ori}`;
+    path += `/${input.offense}`;
+
     try {
-      const from = `01-${input.fromYear}`;
-      const to = `12-${input.toYear}`;
-
-      const response = await this.client.get(
-        `/nibrs/national/${input.offense}`,
-        {
-          params: { from, to, type: "counts" },
+      const res = await this.client.get(path, {
+        params: {
+          from: `01-${input.fromYear}`,
+          to: `12-${input.toYear}`,
+          type: "counts",
         },
+      });
+      return this.transformTrend(
+        `Arrests: ${input.offense}`,
+        res.data.actuals || {},
+        res.data.rates || {},
       );
-
-      const actuals = response.data.offenses?.actuals || {};
-      const rates = response.data.offenses?.rates || {};
-
-      return this.transformTrendData(
-        `National Stats: ${input.offense}`,
-        actuals,
-        rates,
-      );
-    } catch (error: any) {
-      throw new Error(
-        `FBI API Error: ${error.response?.data?.message || error.message}`,
-      );
+    } catch (e: any) {
+      return { title: "No Data", data: [] };
     }
   }
 
   @DaemoFunction({
     description:
-      "Get Hate Crime statistics. Can be filtered by State and specific Bias motivation (e.g., Anti-Black, Anti-Jewish). Returns victim types, offense types, and location types.",
+      "Get NIBRS Estimation Data. Provides statistically estimated counts to account for non-reporting agencies. Note: Uses numeric State IDs.",
+    tags: ["fbi", "estimation"],
+    category: "FBI",
+    inputSchema: GetNIBRSEstimationInput,
+    outputSchema: DetailedStatsOutput, // Returns the raw object array
+  })
+  async getNIBRSEstimation(input: z.infer<typeof GetNIBRSEstimationInput>) {
+    let path = `/nibrs-estimation/${input.level}`;
+    if (input.level === "state") path += `/${input.stateId}`;
+    if (input.level === "region") path += `/${input.regionCode}`;
+    path += `/${input.offense}`;
+
+    try {
+      const res = await this.client.get(path, { params: { year: input.year } });
+      // The estimation endpoint returns an array of objects
+      return {
+        total_count: res.data.length,
+        breakdown: res.data,
+        trend_data: [],
+      };
+    } catch (e: any) {
+      return { total_count: 0 };
+    }
+  }
+
+  @DaemoFunction({
+    description:
+      "Get Hate Crime Data. Filter by Bias Motivation (e.g., '12' Anti-Black).",
     tags: ["fbi", "hate-crime"],
-    category: "FBICrime",
+    category: "FBI",
     inputSchema: GetHateCrimeInput,
-    outputSchema: HateCrimeOutputSchema,
+    outputSchema: DetailedStatsOutput,
   })
-  async getHateCrimeStats(
-    input: z.infer<typeof GetHateCrimeInput>,
-  ): Promise<z.infer<typeof HateCrimeOutputSchema>> {
+  async getHateCrimeData(input: z.infer<typeof GetHateCrimeInput>) {
+    let path = `/hate-crime/${input.level}`;
+    if (input.level === "state") path += `/${input.stateAbbr}`;
+    if (input.level === "agency") path += `/${input.ori}`;
+    if (input.bias) path += `/${input.bias}`;
+
     try {
-      const from = `01-${input.fromYear}`;
-      const to = `12-${input.toYear}`;
-
-      let url = "/hate-crime";
-
-      // Construct URL based on specificity
-      if (input.stateAbbr) {
-        url += `/state/${input.stateAbbr}`;
-      } else {
-        url += `/national`;
-      }
-
-      if (input.biasCode) {
-        url += `/${input.biasCode}`;
-      }
-
-      const response = await this.client.get(url, {
-        params: { from, to },
+      const res = await this.client.get(path, {
+        params: { from: `01-${input.fromYear}`, to: `12-${input.toYear}` },
       });
+      // Flatten response for AI consumption
+      const data = res.data.bias_section || res.data.incident_section || {};
+      const actuals = res.data.actuals || {}; // Sometimes present for trends
 
-      // Navigate the flexible response structure
-      const data =
-        response.data?.bias_section || response.data?.general_section || {};
+      // Manually build trend data if available in 'actuals' key
+      const trendData = [];
+      if (actuals) {
+        const mainKey = Object.keys(actuals)[0];
+        if (mainKey && actuals[mainKey]) {
+          for (const [pd, ct] of Object.entries(actuals[mainKey])) {
+            trendData.push({ period: pd, count: Number(ct) });
+          }
+        }
+      }
 
       return {
-        victim_types: data.victim_type || {},
-        offense_types: data.offense_type || {},
-        location_types: data.location_type || {},
-        bias_motivation: data.incident_section?.bias || {},
+        total_count: trendData.length,
+        breakdown: {
+          victims: data.victim_type,
+          offenses: data.offense_type,
+          bias: data.bias || data.bias_category,
+        },
+        trend_data: trendData.sort((a, b) => a.period.localeCompare(b.period)),
       };
-    } catch (error: any) {
-      throw new Error(
-        `FBI API Error: ${error.response?.data?.message || error.message}`,
-      );
+    } catch (e: any) {
+      return { total_count: 0, trend_data: [] };
     }
   }
 
   @DaemoFunction({
     description:
-      "Get Arrest statistics for a specific state. Shows arrest rates and counts.",
-    tags: ["fbi", "arrests"],
-    category: "FBICrime",
-    inputSchema: GetArrestDataInput,
-    outputSchema: TrendOutputSchema,
+      "Get Supplemental Property Crime Data (Burglary, Larceny, Motor Theft detailed).",
+    tags: ["fbi", "property"],
+    category: "FBI",
+    inputSchema: GetSupplementalInput,
+    outputSchema: TrendOutput,
   })
-  async getArrestData(
-    input: z.infer<typeof GetArrestDataInput>,
-  ): Promise<z.infer<typeof TrendOutputSchema>> {
+  async getSupplementalData(input: z.infer<typeof GetSupplementalInput>) {
+    let path = `/supplemental/${input.level}`;
+    if (input.level === "state") path += `/${input.stateAbbr}`;
+    if (input.level === "agency") path += `/${input.ori}`;
+    path += `/${input.offense}`;
+
     try {
-      const from = `01-${input.fromYear}`;
-      const to = `12-${input.toYear}`;
-
-      const response = await this.client.get(
-        `/arrest/state/${input.stateAbbr}/${input.offense}`,
-        {
-          params: { from, to, type: "counts" },
+      const res = await this.client.get(path, {
+        params: {
+          from: `01-${input.fromYear}`,
+          to: `12-${input.toYear}`,
+          type: "counts",
         },
+      });
+      return this.transformTrend(
+        `Supplemental: ${input.offense}`,
+        res.data.actuals || {},
+        res.data.rates || {},
       );
+    } catch (e: any) {
+      return { title: "No Data", data: [] };
+    }
+  }
 
-      const actuals = response.data?.actuals || {};
-      const rates = response.data?.rates || {};
+  @DaemoFunction({
+    description:
+      "Get Supplemental Homicide Report (SHR) Data. Detailed homicide counts including weapon info.",
+    tags: ["fbi", "homicide", "shr"],
+    category: "FBI",
+    inputSchema: GetSHRInput,
+    outputSchema: DetailedStatsOutput,
+  })
+  async getSHRData(input: z.infer<typeof GetSHRInput>) {
+    let path = `/shr/${input.level}`;
+    if (input.level === "state") path += `/${input.stateAbbr}`;
+    if (input.level === "agency") path += `/${input.ori}`;
 
-      return this.transformTrendData(
-        `Arrests in ${input.stateAbbr}`,
-        actuals,
-        rates,
+    try {
+      const res = await this.client.get(path, {
+        params: {
+          from: `01-${input.fromYear}`,
+          to: `12-${input.toYear}`,
+          type: "counts",
+        },
+      });
+
+      const actuals = res.data.actuals || {};
+      const trendData = [];
+      const mainKey = Object.keys(actuals)[0];
+      if (mainKey && actuals[mainKey]) {
+        for (const [pd, ct] of Object.entries(actuals[mainKey])) {
+          trendData.push({ period: pd, count: Number(ct) });
+        }
+      }
+
+      return {
+        total_count: trendData.length,
+        breakdown: {
+          victim_demographics: res.data.victim_demographics,
+          offender_demographics: res.data.offender_demographics,
+          weapons: res.data.weapon_usage,
+        },
+        trend_data: trendData,
+      };
+    } catch (e: any) {
+      return { total_count: 0, trend_data: [] };
+    }
+  }
+
+  @DaemoFunction({
+    description:
+      "Get Police Employment (PE) Data. Officers vs Civilians count.",
+    tags: ["fbi", "police"],
+    category: "FBI",
+    inputSchema: GetPEInput,
+    outputSchema: TrendOutput,
+  })
+  async getPoliceEmployment(input: z.infer<typeof GetPEInput>) {
+    let path = `/pe`;
+    if (input.level === "state") path += `/${input.stateAbbr}`;
+    if (input.level === "agency") path += `/${input.stateAbbr}/${input.ori}`; // Note: PE agency endpoint is /pe/{state}/{ori}
+
+    try {
+      const res = await this.client.get(path, {
+        params: { from: input.fromYear, to: input.toYear },
+      });
+      // PE returns YYYY keys directly in actuals
+      return this.transformTrend(
+        `Police Employment`,
+        res.data.actuals || {},
+        res.data.rates || {},
       );
-    } catch (error: any) {
-      throw new Error(
-        `FBI API Error: ${error.response?.data?.message || error.message}`,
-      );
+    } catch (e: any) {
+      return { title: "No Data", data: [] };
+    }
+  }
+
+  @DaemoFunction({
+    description: "Get Use of Force / Participation Data.",
+    tags: ["fbi", "uof", "participation"],
+    category: "FBI",
+    inputSchema: GetParticipationInput,
+    outputSchema: DetailedStatsOutput,
+  })
+  async getParticipationData(input: z.infer<typeof GetParticipationInput>) {
+    let path = `/participation/${input.level}/${input.collection}/`;
+    if (input.level === "national") path += "nationalByYear";
+    else if (input.level === "state") {
+      path = `/participation/state/${input.stateAbbr}/${input.collection}/states`;
+    }
+
+    try {
+      const res = await this.client.get(path, {
+        params: { year: input.year, quarter: input.quarter },
+      });
+
+      return {
+        total_count: Array.isArray(res.data) ? res.data.length : 0,
+        breakdown: { raw_response: res.data },
+        trend_data: [],
+      };
+    } catch (e: any) {
+      return { total_count: 0, trend_data: [] };
     }
   }
 }
