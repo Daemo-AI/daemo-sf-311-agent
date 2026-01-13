@@ -16,7 +16,7 @@ TMPFILE="$(mktemp)"
 trap 'rm -f "$TMPFILE"' EXIT
 
 # Stream to stdout AND save to file
-http http://localhost:5000/agent/query-stream \
+http http://localhost:3000/agent/query-stream \
   query="$QUERY" max_tokens:="$MAX_TOKENS" role="$ROLE" analysis_mode:="$ANALYSIS_MODE" \
   | tee "$TMPFILE"
 
