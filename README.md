@@ -40,17 +40,34 @@ SF_311_APP_TOKEN=your_token_here     # https://dev.socrata.com/docs/app-tokens.h
 FBI_API_KEY=your_key_here            # https://api.data.gov/signup/
 ```
 
-### 3. Run
+### 3. Run the Backend
 
 ```bash
 npm run dev
 ```
 
-Server starts at `http://localhost:5000`
+Backend API starts at `http://localhost:5000`
+
+### 4. Run the Chat UI (Optional)
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+Chat interface opens at `http://localhost:3000`
 
 ## Usage
 
-### Query the Agent
+### Using the Chat UI
+
+Simply open `http://localhost:3000` in your browser and start chatting with the AI agent. The interface supports:
+- Real-time streaming responses
+- Conversation history
+- Example prompts to get started
+
+### Using the API Directly
 
 **Using curl:**
 ```bash
@@ -89,16 +106,20 @@ curl -X POST http://localhost:5000/agent/query \
 ## Project Structure
 
 ```
-src/
-├── app.ts                 # Entry point (don't modify)
-├── controllers/           # API handlers (don't modify)
-├── middlewares/           # Express middleware (don't modify)
-├── services/              # ⭐ YOUR CODE GOES HERE
-│   ├── daemoService.ts    # Register your services
-│   ├── sf311Functions.ts  # Example: SF 311 service
-│   ├── fbiFunctions.ts    # Example: FBI Crime service
-│   └── *.schemas.ts       # Zod schemas for validation
-└── utils/                 # Shared utilities
+├── src/                       # Backend (Express + Daemo Engine)
+│   ├── app.ts                 # Entry point (don't modify)
+│   ├── controllers/           # API handlers (don't modify)
+│   ├── middlewares/           # Express middleware (don't modify)
+│   ├── services/              # ⭐ YOUR CODE GOES HERE
+│   │   ├── daemoService.ts    # Register your services
+│   │   ├── sf311Functions.ts  # Example: SF 311 service
+│   │   ├── fbiFunctions.ts    # Example: FBI Crime service
+│   │   └── *.schemas.ts       # Zod schemas for validation
+│   └── utils/                 # Shared utilities
+│
+└── client/                    # Frontend (Next.js + shadcn/ui)
+    ├── app/                   # Next.js app router
+    └── components/            # React components
 ```
 
 ## Adding Your Own Tools
@@ -159,16 +180,23 @@ LLM_MODEL=gemini-2.0-flash
 | `ANTHROPIC_API_KEY` | If using Anthropic | Anthropic API key |
 | `OPENAI_API_KEY` | If using OpenAI | OpenAI API key |
 | `PORT` | No | Server port (default: 5000) |
-| `DAEMO_GATEWAY_URL` | No | Engine URL (default: localhost:50052) |
+| `DAEMO_GATEWAY_URL` | No | Daemo backend URL (default: backend.daemo.ai:50052) |
 | `SF_311_APP_TOKEN` | Recommended | SF Open Data token |
 | `FBI_API_KEY` | Recommended | FBI CDE API key |
 
 ## Scripts
 
+**Backend:**
 ```bash
 npm run dev    # Development with hot reload
 npm run build  # Compile TypeScript
 npm run start  # Run compiled code
+```
+
+**Frontend (in /client):**
+```bash
+npm run dev    # Start development server
+npm run build  # Build for production
 ```
 
 ---

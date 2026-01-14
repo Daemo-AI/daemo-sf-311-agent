@@ -27,7 +27,7 @@ let daemoClient: DaemoClient | null = null;
 
 function getDaemoClient(): DaemoClient {
   if (!daemoClient) {
-    const agentUrl = process.env.DAEMO_GATEWAY_URL || "localhost:50052";
+    const agentUrl = process.env.DAEMO_GATEWAY_URL || "https://backend.daemo.ai:50052";
     console.log(
       "[Agent Controller] Initializing DaemoClient with URL:",
       agentUrl,
