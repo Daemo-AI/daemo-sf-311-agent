@@ -89,7 +89,14 @@ function buildLlmConfig(max_tokens?: number): LlmConfig | undefined {
 const processQuery = async (req: Request, res: Response): Promise<void> => {
   try {
     const role = undefined;
-    const { query, thread_id, context, max_tokens, analysis_mode } = req.body;
+    const {
+      query,
+      thread_id,
+      context,
+      max_tokens,
+      analysis_mode,
+      direct_mode,
+    } = req.body;
 
     if (!query) {
       res.status(400).json({ error: "Query is required" });
@@ -119,6 +126,7 @@ const processQuery = async (req: Request, res: Response): Promise<void> => {
       role,
       contextJson: context ? JSON.stringify(context) : undefined,
       analysisMode: analysis_mode,
+      directMode: direct_mode,
     });
 
     res.status(200).json({
@@ -143,7 +151,15 @@ const processQuery = async (req: Request, res: Response): Promise<void> => {
  */
 const processQueryStreamed = (req: Request, res: Response) => {
   const role = undefined;
-  const { query, thread_id, context, max_tokens, analysis_mode } = req.body;
+  const {
+    query,
+    thread_id,
+    context,
+    max_tokens,
+    analysis_mode,
+    direct_mode, // NEW
+    direct_mode_system_prompt, // NEW (optional)
+  } = req.body;
 
   if (!query) {
     res.status(400).json({ error: "Query is required" });
@@ -199,6 +215,8 @@ const processQueryStreamed = (req: Request, res: Response) => {
         role,
         contextJson: context ? JSON.stringify(context) : undefined,
         analysisMode: analysis_mode,
+        directMode: direct_mode, // NEW
+        directModeSystemPrompt: direct_mode_system_prompt, // NEW
       },
     );
 
@@ -283,7 +301,7 @@ const getThread = async (req: Request, res: Response): Promise<void> => {
 
     const client = getDaemoClient();
 
-    const result = await client.getThread(threadId);
+    const result = await client.getThread(threadId as string);
 
     res.status(200).json({
       success: result.success,
@@ -310,7 +328,7 @@ const deleteThread = async (req: Request, res: Response): Promise<void> => {
 
     const client = getDaemoClient();
 
-    const result = await client.deleteThread(threadId);
+    const result = await client.deleteThread(threadId as string);
 
     res.status(200).json({
       success: result.success,

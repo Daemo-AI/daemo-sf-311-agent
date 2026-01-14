@@ -2,27 +2,38 @@
 set -euo pipefail
 
 if [ -z "${1:-}" ]; then
-  echo "Usage: $0 \"<query>\" \"<max_tokens>\" \"<role>\" \"<analysis_mode>\""
+  echo "Usage: $0 \"<query>\" \"<max_tokens>\" \"<role>\" \"<analysis_mode>\" \"<direct_mode>\""
   exit 1
 fi
 
 QUERY="$1"
 MAX_TOKENS="${2:-65536}"
-ROLE="$3"
-ANALYSIS_MODE="$4"
+ROLE="${3:-}"
+ANALYSIS_MODE="${4:-true}"
+DIRECT_MODE="${5:-false}"
 
 # Temp file to capture the full streamed output while still showing it live
 TMPFILE="$(mktemp)"
 trap 'rm -f "$TMPFILE"' EXIT
 
+# Build the HTTP command with optional parameters
+HTTP_ARGS=(
+  http://localhost:5000/agent/query-stream
+  query="$QUERY"
+  max_tokens:="$MAX_TOKENS"
+  analysis_mode:="$ANALYSIS_MODE"
+  direct_mode:="$DIRECT_MODE"
+)
+
+# Only add role if it's not empty
+if [ -n "$ROLE" ]; then
+  HTTP_ARGS+=(role="$ROLE")
+fi
+
 # Stream to stdout AND save to file
-http http://localhost:3000/agent/query-stream \
-  query="$QUERY" max_tokens:="$MAX_TOKENS" role="$ROLE" analysis_mode:="$ANALYSIS_MODE" \
-  | tee "$TMPFILE"
+http "${HTTP_ARGS[@]}" | tee "$TMPFILE"
 
 # After the stream ends, extract the final_response JSON and print just the message
-# We split the stream into blank-line-separated SSE "records", pick the one that
-# contains "type": "final_response", strip the "data: " prefixes, and jq the message.
 FINAL_MSG=$(
   awk -v RS= -v ORS="\n\n" '/"type": *"final_response"/ {print}' "$TMPFILE" \
   | sed 's/^data: //g' \
