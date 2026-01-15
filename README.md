@@ -134,6 +134,48 @@ curl -X POST http://localhost:5000/agent/query \
     └── components/            # React components
 ```
 
+## How Services Combine Into One Agent
+
+A key architectural concept: **multiple service classes registered to one Daemo service become a single unified agent**.
+
+```typescript
+// In daemoService.ts
+const builder = new DaemoBuilder().withServiceName("sf_311_service");
+
+builder.registerService(new SF311Functions());   // 4 functions
+builder.registerService(new FBICrimeFunctions()); // 10 functions
+```
+
+This creates **one agent** with **14 total functions** – not two separate agents. The AI sees a unified tool palette and can use functions from both services in a single response.
+
+### What This Means in Practice
+
+You can ask cross-domain questions like:
+
+> *"Compare SF homeless encampment complaints from 311 with California crime trends from the FBI data"*
+
+The agent will:
+1. Call `searchOrAggregate` (SF 311) to get encampment data
+2. Call `getSummarizedData` (FBI) to get crime stats  
+3. Synthesize both results in one response
+
+### Category Tags Are Organizational Only
+
+Each function has a `category` field (`"SF311"` or `"FBI"`), but this is just metadata for organization – it doesn't isolate the functions into separate services.
+
+```typescript
+@DaemoFunction({
+  description: "Execute a search...",
+  category: "SF311",  // ← organizational label, not isolation
+})
+```
+
+### Multiple Services on Your Daemo Account
+
+If you see multiple services on [app.daemo.ai](https://app.daemo.ai), each one represents a **separate deployment** with its own API key – not different function sets within the same codebase.
+
+---
+
 ## Adding Your Own Tools
 
 1. **Create a service class** in `src/services/`:
