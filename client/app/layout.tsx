@@ -13,8 +13,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Daemo AI Agent",
-  description: "Chat with the Daemo AI Agent - SF 311 & FBI Crime Data",
+  title: "SF 311 & Crime Data Assistant | Daemo AI",
+  description: "An AI-powered assistant that queries San Francisco 311 service requests and FBI crime statistics using the Daemo Engine.",
 };
 
 export default function RootLayout({

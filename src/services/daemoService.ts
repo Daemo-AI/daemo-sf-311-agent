@@ -43,7 +43,7 @@ export async function startHostedConnection(
   sessionData: SessionData,
 ): Promise<void> {
   const agentApiKey = process.env.DAEMO_AGENT_API_KEY;
-  const gatewayUrl = process.env.DAEMO_GATEWAY_URL || "https://backend.daemo.ai:50052";
+  const gatewayUrl = process.env.DAEMO_GATEWAY_URL || "https://engine.daemo.ai:50052";
 
   if (!agentApiKey) {
     console.warn(

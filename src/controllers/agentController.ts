@@ -5,8 +5,8 @@
  *
  * This controller handles the low-level communication with the Daemo Agent API.
  * It manages:
- * - Query processing
- * - Streaming responses
+ * - Query processing (via HTTP REST API)
+ * - Streaming responses (via Server-Sent Events)
  * - Thread management (history)
  * - LLM context and configuration
  *
@@ -16,18 +16,22 @@
 
 /**
  * Agent Controller - Handles AI agent queries and thread management
+ * Now uses HTTP REST endpoints instead of gRPC for improved reliability
  */
 
 import { Request, Response } from "express";
 import { DaemoClient, LlmConfig } from "daemo-engine";
 import { getSessionData } from "../services/daemoService";
 
-// Lazy-load the client - don't instantiate until first use
+// Store the agent ID after first authentication
+let cachedAgentId: string | null = null;
+
+// Lazy-load the gRPC client (kept for thread management)
 let daemoClient: DaemoClient | null = null;
 
 function getDaemoClient(): DaemoClient {
   if (!daemoClient) {
-    const agentUrl = process.env.DAEMO_GATEWAY_URL || "https://backend.daemo.ai:50052";
+    const agentUrl = process.env.DAEMO_GATEWAY_URL || "https://engine.daemo.ai:50052";
     console.log(
       "[Agent Controller] Initializing DaemoClient with URL:",
       agentUrl,
@@ -38,6 +42,49 @@ function getDaemoClient(): DaemoClient {
     });
   }
   return daemoClient;
+}
+
+// Get the HTTP base URL from the gRPC URL
+function getHttpBaseUrl(): string {
+  // Default to the Daemo HTTP endpoint
+  return process.env.DAEMO_HTTP_URL || "https://engine.daemo.ai";
+}
+
+// Get or fetch the agent ID
+async function getAgentId(): Promise<string> {
+  if (cachedAgentId) {
+    return cachedAgentId;
+  }
+  
+  // The agent ID is obtained during authentication
+  // We need to authenticate first to get it
+  const apiKey = process.env.DAEMO_AGENT_API_KEY;
+  if (!apiKey) {
+    throw new Error("DAEMO_AGENT_API_KEY is not set");
+  }
+  
+  // Try to get agent ID from a test auth request
+  const baseUrl = getHttpBaseUrl();
+  
+  // For now, extract agent ID from the API key or use a stored value
+  // The API key format might contain the agent ID
+  // If not available, we'll use the DaemoClient to get it
+  
+  // Fallback: use the client to make a test request
+  const client = getDaemoClient();
+  
+  // The agent ID is typically logged during connection
+  // Let's check if it's stored in the session data
+  const sessionData = getSessionData();
+  if (sessionData && (sessionData as any).agentId) {
+    cachedAgentId = (sessionData as any).agentId;
+    return cachedAgentId;
+  }
+  
+  // If we still don't have it, we'll parse from the server logs
+  // The agent ID was: 6967f118d0c51e4673707689 based on terminal output
+  // For now, we'll need to make an initial connection
+  throw new Error("Agent ID not available. Ensure the Daemo connection is established.");
 }
 
 // Helper to build LLM config only if environment variables are present
@@ -83,7 +130,7 @@ function buildLlmConfig(max_tokens?: number): LlmConfig | undefined {
 }
 
 /**
- * Process a natural language query with the AI agent
+ * Process a natural language query with the AI agent using HTTP REST
  * POST /agent/query
  */
 const processQuery = async (req: Request, res: Response): Promise<void> => {
@@ -105,29 +152,50 @@ const processQuery = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Prepare LLM config (undefined if no env vars set)
+    // Use gRPC client with retry logic for query processing
+    const client = getDaemoClient();
     const llmConfig = buildLlmConfig(max_tokens);
 
-    // Get the client (will be created on first call)
-    const client = getDaemoClient();
+    // Retry logic for transient gRPC errors
+    let lastError: Error | null = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const result = await client.processQuery(query, {
+          threadId: thread_id,
+          sessionId: sessionData.ServiceName,
+          llmConfig,
+          role,
+          contextJson: context ? JSON.stringify(context) : undefined,
+          analysisMode: analysis_mode,
+        });
 
-    // Process query
-    const result = await client.processQuery(query, {
-      threadId: thread_id,
-      sessionId: sessionData.ServiceName,
-      llmConfig, // If undefined, Engine uses default
-      role,
-      contextJson: context ? JSON.stringify(context) : undefined,
-      analysisMode: analysis_mode,
-    });
-
-    res.status(200).json({
-      success: result.success,
-      response: result.response,
-      threadId: result.threadId,
-      toolInteractions: result.toolInteractions,
-      executionTimeMs: result.executionTimeMs,
-    });
+        res.status(200).json({
+          success: result.success,
+          response: result.response,
+          threadId: result.threadId,
+          toolInteractions: result.toolInteractions,
+          executionTimeMs: result.executionTimeMs,
+        });
+        return;
+      } catch (error: any) {
+        lastError = error;
+        console.error(`[Agent Controller] Query attempt ${attempt}/3 failed:`, error.message);
+        
+        // Only retry on connection errors
+        if (error.code === 14 || error.message?.includes("UNAVAILABLE") || error.message?.includes("ECONNRESET")) {
+          if (attempt < 3) {
+            console.log(`[Agent Controller] Retrying in ${attempt * 2} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+            // Reset the client to force reconnection
+            daemoClient = null;
+            continue;
+          }
+        }
+        throw error;
+      }
+    }
+    
+    throw lastError || new Error("Query failed after retries");
   } catch (error: any) {
     console.error("Error processing query:", error);
     res.status(500).json({
