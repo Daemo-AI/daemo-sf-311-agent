@@ -2,6 +2,8 @@
 
 A ready-to-use template for building AI agents with the [Daemo Engine](https://github.com/daemo-ai). Get started in minutes with pre-configured sample services and a clean, modular architecture.
 
+**Tech Stack:** Express.js 5 (TypeScript) + Next.js 15 + shadcn/ui
+
 This template includes two working example services:
 - **SF 311 Data** – Query San Francisco's 311 non-emergency requests
 - **FBI Crime Data** – Access the FBI Crime Data Explorer API
@@ -58,6 +60,16 @@ npm run dev
 
 Chat interface opens at `http://localhost:3000`
 
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Express.js 5 + TypeScript |
+| **AI Engine** | Daemo Engine SDK |
+| **Frontend** | Next.js 15 + React 19 + shadcn/ui |
+
+The Express server handles the API routes (`/agent/query`, `/agent/threads`, etc.) and communicates with the Daemo Engine to process AI queries. The Next.js frontend is a separate chat interface that calls the Express API.
+
 ## Usage
 
 ### Using the Chat UI
@@ -106,7 +118,7 @@ curl -X POST http://localhost:5000/agent/query \
 ## Project Structure
 
 ```
-├── src/                       # Backend (Express + Daemo Engine)
+├── src/                       # Backend (Express.js + TypeScript)
 │   ├── app.ts                 # Entry point (don't modify)
 │   ├── controllers/           # API handlers (don't modify)
 │   ├── middlewares/           # Express middleware (don't modify)
