@@ -2,13 +2,24 @@
 
 import { useState, useRef, useEffect, FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Loader2, AlertCircle } from "lucide-react";
+import { Send, Loader2, AlertCircle, Wrench, CheckCircle2, XCircle, Brain, ChevronDown, ChevronRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+
+interface ToolCall {
+  id: string;
+  toolName: string;
+  parameters: any;
+  status: "pending" | "success" | "error";
+  result?: any;
+  errorMessage?: string;
+}
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  toolCalls?: ToolCall[];
+  isStreaming?: boolean;
 }
 
 const EXAMPLE_PROMPTS = [
@@ -42,11 +53,94 @@ const SparklesIcon = ({ size = 14 }: { size?: number }) => (
   </svg>
 );
 
+// Tool call display component
+function ToolCallDisplay({ toolCall, isExpanded, onToggle }: { 
+  toolCall: ToolCall; 
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const statusIcon = {
+    pending: <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />,
+    success: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />,
+    error: <XCircle className="h-3.5 w-3.5 text-red-500" />,
+  }[toolCall.status];
+
+  const statusColor = {
+    pending: "border-amber-500/30 bg-amber-500/5",
+    success: "border-emerald-500/30 bg-emerald-500/5",
+    error: "border-red-500/30 bg-red-500/5",
+  }[toolCall.status];
+
+  return (
+    <div className={`rounded-lg border ${statusColor} overflow-hidden transition-all duration-200`}>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/5 transition-colors"
+      >
+        {isExpanded ? (
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
+        <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs font-mono text-foreground flex-1">{toolCall.toolName}</span>
+        {statusIcon}
+      </button>
+      
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-3 space-y-2 border-t border-border/50">
+              {/* Parameters */}
+              <div className="pt-2">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Parameters</p>
+                <pre className="text-xs bg-black/20 rounded p-2 overflow-x-auto font-mono text-zinc-400">
+                  {JSON.stringify(toolCall.parameters, null, 2)}
+                </pre>
+              </div>
+              
+              {/* Result */}
+              {toolCall.status === "success" && toolCall.result && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Result</p>
+                  <pre className="text-xs bg-black/20 rounded p-2 overflow-x-auto font-mono text-emerald-400/80 max-h-40">
+                    {typeof toolCall.result === 'string' 
+                      ? toolCall.result 
+                      : JSON.stringify(toolCall.result, null, 2).slice(0, 500) + (JSON.stringify(toolCall.result).length > 500 ? '...' : '')}
+                  </pre>
+                </div>
+              )}
+              
+              {/* Error */}
+              {toolCall.status === "error" && toolCall.errorMessage && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-red-400 mb-1">Error</p>
+                  <pre className="text-xs bg-red-500/10 rounded p-2 overflow-x-auto font-mono text-red-400">
+                    {toolCall.errorMessage}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentThought, setCurrentThought] = useState<string | null>(null);
+  const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -55,7 +149,7 @@ export function Chat() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, currentThought]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -64,6 +158,18 @@ export function Chat() {
       inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 200)}px`;
     }
   }, [input]);
+
+  const toggleToolExpand = (toolId: string) => {
+    setExpandedTools(prev => {
+      const next = new Set(prev);
+      if (next.has(toolId)) {
+        next.delete(toolId);
+      } else {
+        next.add(toolId);
+      }
+      return next;
+    });
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -75,46 +181,181 @@ export function Chat() {
       content: input.trim(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    // Create assistant message placeholder for streaming
+    const assistantMessageId = (Date.now() + 1).toString();
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      role: "assistant",
+      content: "",
+      toolCalls: [],
+      isStreaming: true,
+    };
+
+    setMessages((prev) => [...prev, userMessage, assistantMessage]);
     setInput("");
     setIsLoading(true);
     setError(null);
+    setCurrentThought(null);
 
     try {
-      // Create an AbortController for timeout (2 minutes for long-running queries)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000);
-
-      const response = await fetch("/api/agent/query", {
+      const response = await fetch("/api/agent/query-stream", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "text/event-stream",
+        },
         body: JSON.stringify({ query: userMessage.content }),
-        signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
-
-      // Handle non-JSON responses (proxy errors, etc.)
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        throw new Error(text || "Server returned a non-JSON response");
-      }
-
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.message || data.error || "Failed to get response");
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || errorData.message || "Failed to get response");
       }
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: data.response || "No response received.",
-      };
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              switch (data.type) {
+                case "thought":
+                  setCurrentThought(data.content);
+                  break;
+
+                case "toolCall":
+                  // Add new tool call with pending status
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastMsg = updated[updated.length - 1];
+                    if (lastMsg.id === assistantMessageId) {
+                      const newToolCall: ToolCall = {
+                        id: `${data.toolName}-${Date.now()}`,
+                        toolName: data.toolName,
+                        parameters: data.parameters,
+                        status: "pending",
+                      };
+                      lastMsg.toolCalls = [...(lastMsg.toolCalls || []), newToolCall];
+                      // Auto-expand new tool calls
+                      setExpandedTools(prev => new Set([...prev, newToolCall.id]));
+                    }
+                    return updated;
+                  });
+                  setCurrentThought(null);
+                  break;
+
+                case "toolResult":
+                  // Update tool call with result
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastMsg = updated[updated.length - 1];
+                    if (lastMsg.id === assistantMessageId && lastMsg.toolCalls) {
+                      // Find the most recent pending tool call with this name
+                      const toolIndex = [...lastMsg.toolCalls].reverse().findIndex(
+                        t => t.toolName === data.toolName && t.status === "pending"
+                      );
+                      if (toolIndex !== -1) {
+                        const actualIndex = lastMsg.toolCalls.length - 1 - toolIndex;
+                        lastMsg.toolCalls[actualIndex] = {
+                          ...lastMsg.toolCalls[actualIndex],
+                          status: data.success ? "success" : "error",
+                          result: data.result,
+                          errorMessage: data.errorMessage,
+                        };
+                      }
+                    }
+                    return updated;
+                  });
+                  break;
+
+                case "finalResponse":
+                  // Update message with final response
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastMsg = updated[updated.length - 1];
+                    if (lastMsg.id === assistantMessageId) {
+                      lastMsg.content = data.response || "No response received.";
+                      lastMsg.isStreaming = false;
+                      // Add tool interactions if not already present
+                      if (data.toolInteractions && data.toolInteractions.length > 0 && (!lastMsg.toolCalls || lastMsg.toolCalls.length === 0)) {
+                        lastMsg.toolCalls = data.toolInteractions.map((t: any, i: number) => ({
+                          id: `${t.toolName}-${i}`,
+                          toolName: t.toolName,
+                          parameters: t.parameters,
+                          status: t.success ? "success" : "error",
+                          result: t.result,
+                          errorMessage: t.errorMessage,
+                        }));
+                      }
+                    }
+                    return updated;
+                  });
+                  setCurrentThought(null);
+                  break;
+
+                case "error":
+                  throw new Error(data.error || "Stream error");
+              }
+            } catch (parseError) {
+              // Ignore JSON parse errors for incomplete data
+              if (line.trim() && !line.includes("event:")) {
+                console.warn("Failed to parse SSE data:", line);
+              }
+            }
+          } else if (line.startsWith("event: error")) {
+            // Handle error event
+            const dataLine = lines[lines.indexOf(line) + 1];
+            if (dataLine?.startsWith("data: ")) {
+              const errorData = JSON.parse(dataLine.slice(6));
+              throw new Error(errorData.message || "Stream error");
+            }
+          } else if (line.startsWith("event: end")) {
+            // Stream ended
+            break;
+          }
+        }
+      }
+
+      // Mark streaming as complete
+      setMessages((prev) => {
+        const updated = [...prev];
+        const lastMsg = updated[updated.length - 1];
+        if (lastMsg.id === assistantMessageId) {
+          lastMsg.isStreaming = false;
+          if (!lastMsg.content) {
+            lastMsg.content = "No response received.";
+          }
+        }
+        return updated;
+      });
+
     } catch (err) {
+      console.error("Stream error:", err);
+      
+      // Update the assistant message with error
+      setMessages((prev) => {
+        const updated = [...prev];
+        const lastMsg = updated[updated.length - 1];
+        if (lastMsg.id === assistantMessageId) {
+          lastMsg.isStreaming = false;
+          lastMsg.content = "";
+        }
+        return updated;
+      });
+
       if (err instanceof Error) {
         if (err.name === "AbortError") {
           setError("Request timed out. The query took too long to process.");
@@ -130,6 +371,7 @@ export function Chat() {
       }
     } finally {
       setIsLoading(false);
+      setCurrentThought(null);
     }
   };
 
@@ -220,10 +462,10 @@ export function Chat() {
 
                   {/* Message Content */}
                   <div
-                    className={`flex flex-col ${
+                    className={`flex flex-col gap-3 ${
                       message.role === "user"
                         ? "max-w-[calc(100%-2.5rem)] sm:max-w-[min(fit-content,80%)]"
-                        : "w-full"
+                        : "w-full max-w-[calc(100%-3rem)]"
                     }`}
                   >
                     {message.role === "user" ? (
@@ -234,9 +476,42 @@ export function Chat() {
                         <p className="whitespace-pre-wrap text-sm">{message.content}</p>
                       </div>
                     ) : (
-                      <div className="prose-chat text-sm">
-                        <ReactMarkdown>{message.content}</ReactMarkdown>
-                      </div>
+                      <>
+                        {/* Tool Calls */}
+                        {message.toolCalls && message.toolCalls.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                              <Wrench className="h-3 w-3" />
+                              Tool Calls ({message.toolCalls.length})
+                            </p>
+                            <div className="space-y-1.5">
+                              {message.toolCalls.map((toolCall) => (
+                                <ToolCallDisplay
+                                  key={toolCall.id}
+                                  toolCall={toolCall}
+                                  isExpanded={expandedTools.has(toolCall.id)}
+                                  onToggle={() => toggleToolExpand(toolCall.id)}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Response Content */}
+                        {message.content && (
+                          <div className="prose-chat text-sm">
+                            <ReactMarkdown>{message.content}</ReactMarkdown>
+                          </div>
+                        )}
+                        
+                        {/* Streaming indicator */}
+                        {message.isStreaming && !message.content && !currentThought && (
+                          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Processing...</span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -246,9 +521,30 @@ export function Chat() {
 
           {/* Thinking indicator */}
           <AnimatePresence mode="wait">
-            {isLoading && (
+            {currentThought && (
               <motion.div
                 key="thinking"
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                className="flex items-start gap-3"
+              >
+                <div className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
+                  <Brain className="h-4 w-4 text-purple-400" />
+                </div>
+                <div className="flex-1 bg-purple-500/10 border border-purple-500/20 rounded-lg px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wider text-purple-400 mb-1">Thinking</p>
+                  <p className="text-sm text-purple-300/90">{currentThought}</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Loading indicator (when no thought is showing) */}
+          <AnimatePresence mode="wait">
+            {isLoading && !currentThought && messages[messages.length - 1]?.role === "user" && (
+              <motion.div
+                key="loading"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0, transition: { duration: 0.3 } }}
@@ -259,7 +555,10 @@ export function Chat() {
                     <SparklesIcon size={14} />
                   </div>
                   <div className="flex w-full flex-col gap-2 md:gap-4">
-                    <div className="p-0 text-muted-foreground text-sm">Thinking...</div>
+                    <div className="p-0 text-muted-foreground text-sm flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Thinking...
+                    </div>
                   </div>
                 </div>
               </motion.div>

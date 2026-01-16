@@ -1,4 +1,4 @@
 {
-  "/api/agent/query/route": "app/api/agent/query/route.js",
+  "/api/agent/query-stream/route": "app/api/agent/query-stream/route.js",
   "/page": "app/page.js"
 }

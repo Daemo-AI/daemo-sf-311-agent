@@ -23,10 +23,7 @@ import { Request, Response } from "express";
 import { DaemoClient, LlmConfig } from "daemo-engine";
 import { getSessionData } from "../services/daemoService";
 
-// Store the agent ID after first authentication
-let cachedAgentId: string | null = null;
-
-// Lazy-load the gRPC client (kept for thread management)
+// Lazy-load the gRPC client
 let daemoClient: DaemoClient | null = null;
 
 function getDaemoClient(): DaemoClient {
@@ -42,49 +39,6 @@ function getDaemoClient(): DaemoClient {
     });
   }
   return daemoClient;
-}
-
-// Get the HTTP base URL from the gRPC URL
-function getHttpBaseUrl(): string {
-  // Default to the Daemo HTTP endpoint
-  return process.env.DAEMO_HTTP_URL || "https://engine.daemo.ai";
-}
-
-// Get or fetch the agent ID
-async function getAgentId(): Promise<string> {
-  if (cachedAgentId) {
-    return cachedAgentId;
-  }
-  
-  // The agent ID is obtained during authentication
-  // We need to authenticate first to get it
-  const apiKey = process.env.DAEMO_AGENT_API_KEY;
-  if (!apiKey) {
-    throw new Error("DAEMO_AGENT_API_KEY is not set");
-  }
-  
-  // Try to get agent ID from a test auth request
-  const baseUrl = getHttpBaseUrl();
-  
-  // For now, extract agent ID from the API key or use a stored value
-  // The API key format might contain the agent ID
-  // If not available, we'll use the DaemoClient to get it
-  
-  // Fallback: use the client to make a test request
-  const client = getDaemoClient();
-  
-  // The agent ID is typically logged during connection
-  // Let's check if it's stored in the session data
-  const sessionData = getSessionData();
-  if (sessionData && (sessionData as any).agentId) {
-    cachedAgentId = (sessionData as any).agentId;
-    return cachedAgentId;
-  }
-  
-  // If we still don't have it, we'll parse from the server logs
-  // The agent ID was: 6967f118d0c51e4673707689 based on terminal output
-  // For now, we'll need to make an initial connection
-  throw new Error("Agent ID not available. Ensure the Daemo connection is established.");
 }
 
 // Helper to build LLM config only if environment variables are present
@@ -239,19 +193,64 @@ const processQueryStreamed = (req: Request, res: Response) => {
   // Get the client (will be created on first call)
   const client = getDaemoClient();
 
+  // Transform SDK events to the expected frontend format
   const onData = (data: any) => {
-    res.write(`data: ${JSON.stringify(data, null, 2)}\n\n`);
+    console.log("[Stream] Received data:", JSON.stringify(data).slice(0, 200));
+    
+    // The SDK may send data with or without a type field
+    // We need to transform it to match the expected frontend format
+    let transformedData = data;
+    
+    // If the data already has a type, pass it through
+    if (data.type) {
+      transformedData = data;
+    }
+    // If it looks like a final response (has 'success' and 'response' fields)
+    else if (data.success !== undefined && data.response !== undefined) {
+      transformedData = {
+        type: "finalResponse",
+        ...data
+      };
+    }
+    // If it looks like a tool call (has 'toolName' and 'parameters')
+    else if (data.toolName && data.parameters !== undefined) {
+      transformedData = {
+        type: "toolCall",
+        toolName: data.toolName,
+        parameters: data.parameters
+      };
+    }
+    // If it looks like a tool result (has 'toolName' and 'result' or 'success')
+    else if (data.toolName && (data.result !== undefined || data.success !== undefined)) {
+      transformedData = {
+        type: "toolResult",
+        toolName: data.toolName,
+        success: data.success ?? true,
+        result: data.result,
+        errorMessage: data.errorMessage
+      };
+    }
+    // If it looks like a thought/content event
+    else if (data.content && typeof data.content === 'string') {
+      transformedData = {
+        type: "thought",
+        content: data.content
+      };
+    }
+    
+    res.write(`data: ${JSON.stringify(transformedData)}\n\n`);
   };
 
   const onError = (error: Error) => {
     console.error("Stream error: ", error);
     res.write(
-      `event: error\ndata: ${JSON.stringify({ message: error.message }, null, 2)}\n\n`,
+      `data: ${JSON.stringify({ type: "error", error: error.message })}\n\n`,
     );
     res.end();
   };
 
   const onEnd = () => {
+    console.log("[Stream] Stream ended");
     res.write(`event: end\ndata: {}\n\n`);
     res.end();
   };
