@@ -31,7 +31,7 @@ async function startServer() {
     console.log("\n=== Initializing Daemo Service ===");
     const sessionData = initializeDaemoService();
     console.log(
-      `Registered ${sessionData.Functions.length} CRM functions with Daemo`,
+      `Registered ${sessionData.Functions.length} functions with Daemo`,
     );
 
     // Start hosted connection if API key is provided
