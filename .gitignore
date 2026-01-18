@@ -7,3 +7,4 @@ temp/
 public/
 supabase/.temp
 .auth_token
+data/
