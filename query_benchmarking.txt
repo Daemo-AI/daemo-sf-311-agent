@@ -1,0 +1,152 @@
+❯ ./ask.sh "What are the most common crimes in Dodge City Kansas and how does that compare against Garden City Kansas?" 8000 admin true true (completed in 24s)
+
+Final: ## Most Common Crimes – Dodge City, KS vs. Garden City, KS (2022‑2023)
+
+Below are the **top 5 offenses by incident count** for each city and a full side‑by‑side table of all offenses reported in the two‑year window.
+
+---
+
+### Dodge City, KS – Top 5 Offenses
+- **290** (Destruction/Damage/Vandalism): 632  
+- **13B** (Simple Assault): 388  
+- **35A** (Drug/Narcotic Violations): 336  
+- **35B** (Drug Equipment Violations): 312  
+- **23H** (All Other Larceny): 272  
+
+### Garden City, KS – Top 5 Offenses
+- **290** (Destruction/Damage/Vandalism): 704  
+- **13B** (Simple Assault): 577  
+- **35A** (Drug/Narcotic Violations): 476  
+- **35B** (Drug Equipment Violations): 371  
+- **23C** (Shoplifting): 315  
+
+### Full Comparative Summary (All Reported Offenses)
+| Offense Code | Description | Dodge City Count | Garden City Count |
+|--------------|-------------|------------------|-------------------|
+| 100 | Kidnapping/Abduction | 38 | 78 |
+| 120 | Robbery | 13 | 25 |
+| 200 | Arson | 17 | 15 |
+| 210 | Extortion/Blackmail | 18 | 6 |
+| 220 | Burglary/Breaking & Entering | 107 | 162 |
+| 240 | Motor Vehicle Theft | 64 | 158 |
+| 250 | Counterfeiting/Forgery | 34 | 113 |
+| 270 | Embezzlement | 63 | 10 |
+| 280 | Stolen Property Offenses | 11 | 22 |
+| 290 | Destruction/Damage/Vandalism | 632 | 704 |
+| 370 | Pornography/Obscene Material | 6 | 23 |
+| 520 | Weapon Law Violations | 46 | 62 |
+| 13B | Simple Assault | 388 | 577 |
+| 35A | Drug/Narcotic Violations | 336 | 476 |
+| 35B | Drug Equipment Violations | 312 | 371 |
+| 23H | All Other Larceny | 272 | 228 |
+| 23F | Theft From Motor Vehicle | 162 | 262 |
+| 13A | Aggravated Assault | 139 | 199 |
+| 26B | Credit Card/ATM Fraud | 133 | 114 |
+| 13C | Intimidation | 126 | 143 |
+| 26A | False Pretenses/Swindle/Confidence Game | 117 | 239 |
+| 23C | Shoplifting | 108 | 315 |
+| 23G | Theft of Motor Vehicle Parts | 53 | 43 |
+| 23D | Theft From Building | 52 | 246 |
+| 11A | Rape | 23 | 46 |
+| 11D | Fondling | 15 | 59 |
+| 11B | Sodomy | 6 | 4 |
+| 23A | Pocket-picking | 4 | 4 |
+| 23E | Theft From Coin-Operated Machine | 3 | 0 |
+| 09A | Murder and Nonnegligent Manslaughter | 3 | 4 |
+| 23B | Purse-snatching | 1 | 4 |
+| 36B | Statutory Rape | 1 | 6 |
+| 36A | Incest | 1 | 0 |
+| 26C | Impersonation | 1 | 2 |
+| 510 | Bribery | 0 | 1 |
+| 40B | Assisting/Promoting Prostitution | 0 | 2 |
+| 09B | Negligent Manslaughter | 0 | 2 |
+| 40A | Prostitution | 0 | 1 |
+
+---
+
+#### What the numbers show
+
+| Offense Code | Description | Dodge City Count | Garden City Count |
+|--------------|-------------|------------------|-------------------|
+| 13B | Simple Assault | 388 | 577 |
+| 13A | Aggravated Assault | 139 | 199 |
+| 240 | Motor Vehicle Theft | 64 | 158 |
+| 220 | Burglary/Breaking & Entering | 107 | 162 |
+| 35A | Drug/Narcotic Violations | 336 | 476 |
+| … | (All other offenses appear in the full table) |  |  |
+
+**Key take‑aways**
+
+- **Simple Assault (13B)** is the most frequent offense in both cities.  
+- **Aggravated Assault (13A)**, **Motor Vehicle Theft (240)**, **Burglary (220)** and **Drug/Narcotic Violations (35A)** also rank among the top offenses.  
+- The full table (generated above) lists every offense reported in either city, allowing you to compare exact counts side‑by‑side.
+
+> **Note:** NIBRS reporting is voluntary. The figures reflect incidents reported by the Dodge City Police Department (ORI KS0290100) and the Garden City Police Department (ORI KS0280100) for the years 2022
+‑2023. Small counts, especially for violent crimes, can fluctuate year‑to‑year and may not represent stable trends. If you’d like per‑capita rates, longer‑term trends, or a deeper dive into specific offens
+e categories, just let me know!
+
+
+====================================================================================================================================================================================================
+
+./ask.sh "What are the most common crimes in the country and how does the national average compare against Dodge City Kansas?" 8000 admin true true (completed in 11s)
+
+Final: ## Most Common Crimes – National vs. Dodge City, Kansas (state‑level proxy)
+
+**Important:** The NIBRS API does not support a direct city filter, so Kansas‑wide data is used as a proxy for Dodge City. For an exact city‑level breakdown, the specific agency ORI for Dodge City would be
+ required.
+
+---
+
+### 📊 National Top 10 Offenses  
+
+| Rank | Offense Code | Description                     | Count      | % of Total |
+|------|--------------|---------------------------------|------------|------------|
+| 1 | 13B | Simple Assault | 10,347,254 | 18.43% |
+| 2 | 290 | Destruction/Damage/Vandalism | 8,526,202 | 15.19% |
+| 3 | 23H | All Other Larceny | 7,632,977 | 13.59% |
+| 4 | 35A | Drug/Narcotic Violations | 5,956,212 | 10.60% |
+| 5 | 23C | Shoplifting | 4,910,221 | 8.74% |
+| 6 | 23F | Theft From Motor Vehicle | 4,640,756 | 8.27% |
+| 7 | 240 | Motor Vehicle Theft | 3,972,834 | 7.08% |
+| 8 | 220 | Burglary/Breaking & Entering | 3,750,261 | 6.68% |
+| 9 | 13A | Aggravated Assault | 3,243,172 | 5.78% |
+| 10 | 13C | Intimidation | 3,186,722 | 5.68% |
+
+*Total incidents reported nationally (these 10 offenses): **56,166,611**.*
+
+---
+
+### 📊 Kansas (proxy for Dodge City) Top 10 Offenses  
+
+| Rank | Offense Code | Description                     | Count   | % of Total |
+|------|--------------|---------------------------------|---------|------------|
+| 1 | 290 | Destruction/Damage/Vandalism | 151,481 | 19.26% |
+| 2 | 13B | Simple Assault | 125,482 | 15.96% |
+| 3 | 35A | Drug/Narcotic Violations | 100,326 | 12.76% |
+| 4 | 35B | Drug Equipment Violations | 80,220 | 10.20% |
+| 5 | 23H | All Other Larceny | 76,638 | 9.75% |
+| 6 | 23C | Shoplifting | 58,065 | 7.38% |
+| 7 | 23F | Theft From Motor Vehicle | 55,359 | 7.04% |
+| 8 | 26A | False Pretenses/Swindle/Confidence Game | 49,102 | 6.24% |
+| 9 | 13C | Intimidation | 47,373 | 6.02% |
+| 10 | 13A | Aggravated Assault | 42,427 | 5.39% |
+
+*Total incidents reported for these 10 offenses in Kansas: **786,473**.*
+
+---
+
+### 🔎 Interpretation  
+
+- **Simple Assault (13B)** is the most common offense nationally (≈ 18 % of the top‑10 total), while in Kansas it ranks second (≈ 16 %) behind **Destruction/Damage/Vandalism**.
+- **Property‑related offenses** dominate both lists: *Destruction/Damage/Vandalism*, *All Other Larceny*, *Shoplifting*, and *Theft From Motor Vehicle* all appear in the top ten.
+- **Drug‑related violations** (35A – Drug/Narcotic Violations) are in the top five for both the nation and Kansas, underscoring the continued focus on drug offenses.
+- **Violent assaults** (Aggravated Assault 13A, Intimidation 13C) are present but represent a smaller share of total incidents compared with property crimes.
+
+### ⚠️ Caveats  
+
+- **Coverage:** NIBRS reporting is voluntary; not every agency in Kansas (or the United States) reports, which can affect completeness.
+- **City‑level proxy:** Kansas‑wide figures aggregate many jurisdictions; Dodge City’s specific profile may differ.
+- **Small‑number reliability:** Counts under ~30 are less reliable; the top offenses listed are well above that threshold.
+
+*Data source:* FBI NIBRS, accessed via `getOffenseSummary` (latest available year).
+

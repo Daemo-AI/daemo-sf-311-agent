@@ -31,7 +31,7 @@ async function startServer() {
     console.log("\n=== Initializing Daemo Service ===");
     const sessionData = initializeDaemoService();
     console.log(
-      `Registered ${sessionData.Functions.length} CRM functions with Daemo`,
+      `Registered ${sessionData.Functions.length} NIBRS functions with Daemo`,
     );
 
     // Start hosted connection if API key is provided
@@ -56,7 +56,7 @@ async function startServer() {
     // Define the root path with a greeting message
     app.get("/", (_: Request, res: Response) => {
       res.json({
-        message: "Welcome to Daemo AI Agent Engine Boilerplate Template!",
+        message: "Welcome to Daemo NIBRS Crime Data Agent!",
       });
     });
 

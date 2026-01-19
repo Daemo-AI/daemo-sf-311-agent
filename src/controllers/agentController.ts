@@ -20,7 +20,7 @@
 
 import { Request, Response } from "express";
 import { DaemoClient, LlmConfig } from "daemo-engine";
-import { getSessionData } from "../services/daemoService";
+import { getSessionData, DIRECT_MODE_SYSTEM_PROMPT } from "../services/daemoService";
 
 // Lazy-load the client - don't instantiate until first use
 let daemoClient: DaemoClient | null = null;
@@ -118,7 +118,8 @@ const processQuery = async (req: Request, res: Response): Promise<void> => {
     // Get the client (will be created on first call)
     const client = getDaemoClient();
 
-    // Process query
+    // Process query - Default to direct mode with NIBRS system prompt
+    const useDirectMode = direct_mode !== false; // Default to true unless explicitly set to false
     const result = await client.processQuery(query, {
       threadId: thread_id,
       sessionId: sessionData.ServiceName,
@@ -126,7 +127,8 @@ const processQuery = async (req: Request, res: Response): Promise<void> => {
       role,
       contextJson: context ? JSON.stringify(context) : undefined,
       analysisMode: analysis_mode,
-      directMode: direct_mode,
+      directMode: useDirectMode,
+      directModeSystemPrompt: useDirectMode ? DIRECT_MODE_SYSTEM_PROMPT : undefined,
     });
 
     res.status(200).json({
@@ -205,6 +207,10 @@ const processQueryStreamed = (req: Request, res: Response) => {
   };
 
   try {
+    // Default to direct mode with NIBRS system prompt
+    const useDirectMode = direct_mode !== false; // Default to true unless explicitly set to false
+    const systemPrompt = direct_mode_system_prompt || (useDirectMode ? DIRECT_MODE_SYSTEM_PROMPT : undefined);
+
     const stream = client.processQueryStreamed(
       query,
       { onData, onError, onEnd },
@@ -215,8 +221,8 @@ const processQueryStreamed = (req: Request, res: Response) => {
         role,
         contextJson: context ? JSON.stringify(context) : undefined,
         analysisMode: analysis_mode,
-        directMode: direct_mode, // NEW
-        directModeSystemPrompt: direct_mode_system_prompt, // NEW
+        directMode: useDirectMode,
+        directModeSystemPrompt: systemPrompt,
       },
     );
 
