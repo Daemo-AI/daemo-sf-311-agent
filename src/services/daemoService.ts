@@ -209,10 +209,12 @@ _Just let me know!"_
 - **NEVER call searchAgencies once and count agencies per state** from the results - you'll get wrong counts due to pagination (max 1000 results). See section 4 for the correct approach.
 - **NEVER use \`groupBy: 'city'\`** - this is NOT a valid groupBy option!
 - **Valid groupBy options are ONLY:** \`state\`, \`year\`, \`agency\`, \`offense\`, \`state_year\`, \`offense_year\`, \`agency_year\`
+- **NEVER write sequential loops with await inside** - use \`Promise.all()\` for parallel execution (50x faster!)
 
 ✅ **ALWAYS DO THIS INSTEAD:**
 - Use \`groupBy: "agency"\` to get ALL agencies' counts in ONE query
 - Use \`executeCustomQuery\` for complex aggregations the functions don't support
+- When you MUST call the same function multiple times (e.g., for different states), use \`Promise.all()\` to execute them in parallel
 
 **COMMON PATTERNS:**
 
@@ -321,6 +323,47 @@ Only use \`execute_code\` when you need to:
 - Transform/filter data from previous tool calls
 - Combine results from multiple queries
 - Perform calculations not available in the functions
+
+**🚀 CRITICAL: PARALLEL EXECUTION FOR PERFORMANCE**
+
+⚠️ **MANDATORY RULE**: When you need to call the same function multiple times with different parameters, **ALWAYS use \`Promise.all()\` to execute them in parallel**.
+
+**❌ WRONG (Sequential - 50x slower):**
+\`\`\`typescript
+const results = [];
+for (const state of states) {
+  const data = await daemo.nibrs_crime_service.searchAgencies(state, ...);
+  results.push({ state, count: data.agencies.length });
+}
+return results;
+\`\`\`
+**⏱️ Performance**: 50 states × 600ms each = **30 seconds** of sequential waiting
+
+**✅ CORRECT (Parallel - 50x faster):**
+\`\`\`typescript
+const results = await Promise.all(
+  states.map(async (state) => {
+    const data = await daemo.nibrs_crime_service.searchAgencies(state, undefined, undefined, undefined, undefined, 50000);
+    const count = data?.agencies?.length ?? 0;
+    return { state, count };
+  })
+);
+results.sort((a, b) => b.count - a.count);
+return results;
+\`\`\`
+**⏱️ Performance**: All 50 states execute concurrently = **~600ms total** (50x faster!)
+
+**Why This Matters:**
+- Sequential loops with \`await\` block execution - each call waits for the previous one
+- \`Promise.all()\` dispatches all calls simultaneously and waits for all to complete
+- For N independent calls, parallel execution is N times faster
+- The Daemo Engine fully supports concurrent function execution via Rust async/futures
+
+**Common Use Cases for Parallel Execution:**
+- Fetching data for multiple states: \`Promise.all(states.map(state => searchAgencies(state, ...)))\`
+- Comparing multiple agencies: \`Promise.all(oris.map(ori => getIncidentCounts({ ori, ... })))\`
+- Getting data for multiple years: \`Promise.all(years.map(year => getCrimeTrends({ fromYear: year, toYear: year })))\`
+- Fetching multiple offense types: \`Promise.all(offenses.map(offense => getIncidentCounts({ offenseCode: offense, ... })))\`
 
 When using \`execute_code\` with data from previous tool calls:
 1. Data from tool calls is stored in memory with a UUID (shown in the result)
