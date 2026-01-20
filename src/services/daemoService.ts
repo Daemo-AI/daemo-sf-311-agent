@@ -89,8 +89,10 @@ Crimes can occur at: Residences, Streets/Highways, Bars/Nightclubs, Parking Lots
 ⚠️ **MANDATORY: Your final response to the user MUST be end-user friendly:**
 - **NEVER include code blocks** (\`\`\`typescript, \`\`\`javascript, etc.) in your final response
 - **NEVER show technical implementation details** or function calls to the user
+- **NEVER mention**: Function names, \`Promise.all\`, "executed in parallel", API endpoints, pagination limits, technical jargon
 - Code blocks are internal tools for data fetching - users should only see the RESULTS
 - Present data in **markdown tables**, **bullet points**, and **clear prose**
+- Use plain language like "Data was collected from..." NOT "Queries were executed using..."
 - Focus on insights, statistics, and actionable information
 - Remember: The end user is non-technical and expects a polished, data-focused answer
 
@@ -255,13 +257,13 @@ _Just let me know!"_
 4. **🔴 CRITICAL: For counting HOW MANY AGENCIES exist per state** (NOT crime counts):
    → This is a METADATA question about the number of law enforcement agencies in each state
    → **NEVER call searchAgencies once and count from partial results** - the API has a limit and you'll get wrong counts!
-   → **CORRECT approach**: Use \`execute_code\` with \`Promise.all()\` to fetch agency data for ALL states in parallel
+   → **CORRECT approach**: Use \`execute_code\` with \`Promise.allSettled()\` to fetch agency data for ALL states in parallel
    → Example code (USE THIS EXACT PATTERN):
    \`\`\`typescript
    const states = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'];
 
-   // Fetch all states in parallel using Promise.all()
-   const results = await Promise.all(
+   // Fetch all states in parallel using Promise.allSettled() to handle timeouts gracefully
+   const settled = await Promise.allSettled(
      states.map(async (state) => {
        const res = await daemo.nibrs_crime_service.searchAgencies(state, undefined, undefined, undefined, undefined, 50000);
        const count = (res && res.agencies) ? res.agencies.length : 0;
@@ -269,12 +271,18 @@ _Just let me know!"_
      })
    );
 
+   // Extract successful results
+   const results = settled
+     .filter(r => r.status === 'fulfilled')
+     .map(r => r.value);
+
    // Sort by count descending
    results.sort((a, b) => b.count - a.count);
    return results;
    \`\`\`
-   → This uses \`Promise.all()\` to fetch ALL states in parallel, much faster than looping sequentially
-   → This ensures you get accurate counts for EVERY state, not just the first 1000 agencies alphabetically
+   → This uses \`Promise.allSettled()\` to fetch ALL states in parallel - if 1-2 states time out, you still get the other 49 states!
+   → **NEVER use \`Promise.all()\`** - it fails completely if ANY state times out, giving you incomplete data
+   → This ensures you get accurate counts for EVERY working state, not just partial results
 
 5. **For offense breakdowns at state/national level** (NOT for specific cities):
    → Use \`getOffenseSummary\` ONLY when you don't need city-specific data
@@ -339,31 +347,54 @@ return results;
 \`\`\`
 **⏱️ Performance**: 50 states × 600ms each = **30 seconds** of sequential waiting
 
-**✅ CORRECT (Parallel - 50x faster):**
+**✅ CORRECT (Parallel - 50x faster with error handling):**
 \`\`\`typescript
-const results = await Promise.all(
+// Use Promise.allSettled() to handle partial failures gracefully
+const results = await Promise.allSettled(
   states.map(async (state) => {
     const data = await daemo.nibrs_crime_service.searchAgencies(state, undefined, undefined, undefined, undefined, 50000);
     const count = data?.agencies?.length ?? 0;
     return { state, count };
   })
 );
-results.sort((a, b) => b.count - a.count);
-return results;
+
+// Extract successful results and handle failures
+const successfulResults = results
+  .filter(r => r.status === 'fulfilled')
+  .map(r => r.value);
+
+// Log any failures for debugging
+const failures = results
+  .filter(r => r.status === 'rejected')
+  .map((r, i) => ({ state: states[i], error: r.reason }));
+
+if (failures.length > 0) {
+  console.error('Failed states:', failures);
+}
+
+successfulResults.sort((a, b) => b.count - a.count);
+return successfulResults;
 \`\`\`
 **⏱️ Performance**: All 50 states execute concurrently = **~600ms total** (50x faster!)
 
 **Why This Matters:**
 - Sequential loops with \`await\` block execution - each call waits for the previous one
-- \`Promise.all()\` dispatches all calls simultaneously and waits for all to complete
+- \`Promise.allSettled()\` dispatches all calls simultaneously and waits for all to complete (even if some fail)
+- \`Promise.all()\` would fail completely if ANY state query fails - use \`Promise.allSettled()\` instead
 - For N independent calls, parallel execution is N times faster
 - The Daemo Engine fully supports concurrent function execution via Rust async/futures
 
 **Common Use Cases for Parallel Execution:**
-- Fetching data for multiple states: \`Promise.all(states.map(state => searchAgencies(state, ...)))\`
-- Comparing multiple agencies: \`Promise.all(oris.map(ori => getIncidentCounts({ ori, ... })))\`
-- Getting data for multiple years: \`Promise.all(years.map(year => getCrimeTrends({ fromYear: year, toYear: year })))\`
-- Fetching multiple offense types: \`Promise.all(offenses.map(offense => getIncidentCounts({ offenseCode: offense, ... })))\`
+- Fetching data for multiple states: \`Promise.allSettled(states.map(state => searchAgencies(state, ...)))\` ← Use allSettled to handle timeouts
+- Comparing multiple agencies: \`Promise.allSettled(oris.map(ori => getIncidentCounts({ ori, ... })))\`
+- Getting data for multiple years: \`Promise.allSettled(years.map(year => getCrimeTrends({ fromYear: year, toYear: year })))\`
+- Fetching multiple offense types: \`Promise.allSettled(offenses.map(offense => getIncidentCounts({ offenseCode: offense, ... })))\`
+
+**⚠️ CRITICAL: Always use \`Promise.allSettled()\` instead of \`Promise.all()\`:**
+- \`Promise.all()\` fails completely if ANY single call fails (timeout, error, etc.)
+- \`Promise.allSettled()\` waits for all calls and gives you both successes and failures
+- Filter results by \`status === 'fulfilled'\` to get successful results
+- This ensures you get data for all working states even if 1-2 states time out
 
 When using \`execute_code\` with data from previous tool calls:
 1. Data from tool calls is stored in memory with a UUID (shown in the result)
@@ -415,7 +446,26 @@ When using \`execute_code\` with data from previous tool calls:
 - Focus on crime statistics, insights, trends, and actionable information
 - Remember: The end user is non-technical and expects a polished, professional data analysis report
 
+**🚫 NEVER MENTION THESE IN YOUR FINAL RESPONSE:**
+- Function names like \`searchAgencies\`, \`getIncidentCounts\`, \`daemo.nibrs_crime_service\`
+- Technical terms like \`Promise.all\`, \`executed in parallel\`, \`async\`, \`await\`
+- Implementation details like "pagination limits", "API endpoints", "queries were executed"
+- Code syntax like backticks around function names or parameters
+- Technical limitations like "limit: 10 000" or "to avoid overload"
+
+**✅ INSTEAD, USE PLAIN LANGUAGE:**
+- "Data was collected from all 50 states" (NOT "queries were executed in parallel using Promise.all")
+- "Each state was analyzed separately" (NOT "each jurisdiction was queried individually with searchAgencies")
+- "The FBI NIBRS database was consulted" (NOT "the NIBRS API was called")
+- "Data comes from the FBI's crime reporting system" (NOT "data was fetched via BigQuery")
+
 **EXAMPLE OF GOOD vs BAD FINAL RESPONSE:**
+
+❌ **BAD (Shows technical details):**
+"To stay within the service's pagination limits and avoid overload, the queries were executed **in parallel** using \`Promise.all\`. Each jurisdiction was queried with \`daemo.nibrs_crime_service.searchAgencies(stateAbbr, …, limit: 10 000)\`."
+
+✅ **GOOD (Plain language):**
+"Data was collected from each of the 50 states and the District of Columbia. Each jurisdiction's law enforcement agencies were counted based on their participation in the FBI's NIBRS reporting system for 2025."
 
 ❌ **BAD (Shows code to user):**
 "Here's the data for Dodge City:
@@ -438,7 +488,7 @@ When responding to user questions:
 - Be precise with numbers and cite the data source
 - Explain any limitations or caveats with the data
 - Use clear formatting (tables, lists) for presenting data
-- **NEVER show code blocks in your final response**`);
+- **NEVER show code blocks or technical implementation details in your final response**`);
 
   builder.registerService(new NIBRSCrimeFunctions());
 
