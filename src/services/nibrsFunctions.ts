@@ -310,7 +310,7 @@ export class NIBRSCrimeFunctions {
 
   @DaemoFunction({
     description:
-      "Search for law enforcement agency metadata (names, ORIs, locations). Use this ONLY to find agency ORI identifiers or agency details - NOT for crime statistics or comparisons. For crime counts, rates, or agency crime comparisons, use getIncidentCounts instead.",
+      "Search for law enforcement agency metadata (names, ORIs, locations). Use this ONLY to find agency ORI identifiers for a specific city/county - NOT for counting agencies or aggregating by state. CRITICAL: This function has pagination limits (max 1000 results per call) and returns partial results. To count how many agencies exist per state, you MUST loop through all state codes calling this function for each state individually (see system prompt section 4). For crime statistics or comparisons, use getIncidentCounts instead.",
     tags: ["nibrs", "agency", "search", "ori", "metadata"],
     category: "NIBRS",
     inputSchema: SearchAgenciesInput,
