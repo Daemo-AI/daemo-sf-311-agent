@@ -25,12 +25,14 @@ const optionalInt = z
 /** Create an optional enum that handles null and empty string by returning undefined */
 function optionalEnumWithDefault<T extends [string, ...string[]]>(
   values: T,
-  defaultValue: T[number]
+  defaultValue: T[number],
 ) {
   return z
     .enum(values)
     .nullish()
-    .transform((val) => (val === null || val === "" || val === undefined ? undefined : val))
+    .transform((val) =>
+      val === null || val === "" || val === undefined ? undefined : val,
+    )
     .pipe(z.enum(values).default(defaultValue as T[number]));
 }
 
@@ -49,12 +51,58 @@ function optionalEnum<T extends [string, ...string[]]>(values: T) {
 
 export const StateAbbrEnum = z
   .enum([
-    "AK", "AL", "AR", "AZ", "CA", "CO", "CT", "DC", "DE", "FL",
-    "GA", "HI", "IA", "ID", "IL", "IN", "KS", "KY", "LA", "MA",
-    "MD", "ME", "MI", "MN", "MO", "MS", "MT", "NC", "ND", "NE",
-    "NH", "NJ", "NM", "NV", "NY", "OH", "OK", "OR", "PA", "RI",
-    "SC", "SD", "TN", "TX", "UT", "VA", "VI", "VT", "WA", "WI",
-    "WV", "WY",
+    "AK",
+    "AL",
+    "AR",
+    "AZ",
+    "CA",
+    "CO",
+    "CT",
+    "DC",
+    "DE",
+    "FL",
+    "GA",
+    "HI",
+    "IA",
+    "ID",
+    "IL",
+    "IN",
+    "KS",
+    "KY",
+    "LA",
+    "MA",
+    "MD",
+    "ME",
+    "MI",
+    "MN",
+    "MO",
+    "MS",
+    "MT",
+    "NC",
+    "ND",
+    "NE",
+    "NH",
+    "NJ",
+    "NM",
+    "NV",
+    "NY",
+    "OH",
+    "OK",
+    "OR",
+    "PA",
+    "RI",
+    "SC",
+    "SD",
+    "TN",
+    "TX",
+    "UT",
+    "VA",
+    "VI",
+    "VT",
+    "WA",
+    "WI",
+    "WV",
+    "WY",
   ])
   .describe("Two-letter state abbreviation");
 
@@ -287,7 +335,9 @@ export const SexEnum = z
 
 export const RaceEnum = z
   .enum(["A", "B", "I", "P", "U", "W"])
-  .describe("Race: A=Asian, B=Black, I=American Indian, P=Pacific Islander, U=Unknown, W=White");
+  .describe(
+    "Race: A=Asian, B=Black, I=American Indian, P=Pacific Islander, U=Unknown, W=White",
+  );
 
 export const EthnicityEnum = z
   .enum(["H", "N", "U"])
@@ -352,12 +402,22 @@ export const ClearanceTypeEnum = z
 
 // --- Agency Search ---
 export const SearchAgenciesInput = z.object({
-  stateAbbr: optionalEnum(StateAbbrEnum.options).describe("Filter by state abbreviation"),
+  stateAbbr: optionalEnum(StateAbbrEnum.options).describe(
+    "Filter by state abbreviation",
+  ),
   county: optionalString.describe("Filter by county name (partial match)"),
   agencyName: optionalString.describe("Filter by agency name (partial match)"),
   agencyType: optionalString.describe("Filter by agency type"),
-  nibrsOnly: z.boolean().nullish().transform(val => val ?? false).describe("Only return NIBRS-participating agencies"),
-  limit: z.number().nullish().transform(val => val ?? 100).describe("Maximum results to return"),
+  nibrsOnly: z
+    .boolean()
+    .nullish()
+    .transform((val) => val ?? false)
+    .describe("Only return NIBRS-participating agencies"),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000)
+    .describe("Maximum results to return"),
 });
 
 // --- Incident Counts ---
@@ -366,12 +426,26 @@ export const GetIncidentCountsInput = z.object({
   ori: optionalString.describe("Filter by specific agency ORI"),
   fromYear: optionalInt.describe("Start year (inclusive)"),
   toYear: optionalInt.describe("End year (inclusive)"),
-  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe("Filter by specific offense code"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by specific offense code",
+  ),
   groupBy: optionalEnumWithDefault(
-    ["state", "year", "agency", "offense", "state_year", "offense_year", "agency_year"],
-    "year"
+    [
+      "state",
+      "year",
+      "agency",
+      "offense",
+      "state_year",
+      "offense_year",
+      "agency_year",
+    ],
+    "year",
   ).describe("How to group the results"),
-  limit: z.number().nullish().transform(val => val ?? 1000).describe("Maximum results"),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000)
+    .describe("Maximum results"),
 });
 
 // --- Offense Summary ---
@@ -380,14 +454,23 @@ export const GetOffenseSummaryInput = z.object({
   ori: optionalString.describe("Filter by agency ORI"),
   fromYear: optionalInt.describe("Start year"),
   toYear: optionalInt.describe("End year"),
-  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe("Filter by offense code"),
-  locationType: optionalEnum(LocationTypeEnum.options).describe("Filter by location type"),
-  biasMotivation: optionalEnum(BiasMotivationEnum.options).describe("Filter by bias motivation (hate crimes)"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by offense code",
+  ),
+  locationType: optionalEnum(LocationTypeEnum.options).describe(
+    "Filter by location type",
+  ),
+  biasMotivation: optionalEnum(BiasMotivationEnum.options).describe(
+    "Filter by bias motivation (hate crimes)",
+  ),
   groupBy: optionalEnumWithDefault(
     ["offense", "location", "weapon", "bias", "offense_year"],
-    "offense"
+    "offense",
   ).describe("How to group results"),
-  limit: z.number().nullish().transform(val => val ?? 100),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
 });
 
 // --- Victim Demographics ---
@@ -396,13 +479,20 @@ export const GetVictimDemographicsInput = z.object({
   ori: optionalString.describe("Filter by agency ORI"),
   fromYear: optionalInt.describe("Start year"),
   toYear: optionalInt.describe("End year"),
-  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe("Filter by offense code"),
-  victimType: optionalEnum(VictimTypeEnum.options).describe("Filter by victim type (I=Individual, B=Business, etc.)"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by offense code",
+  ),
+  victimType: optionalEnum(VictimTypeEnum.options).describe(
+    "Filter by victim type (I=Individual, B=Business, etc.)",
+  ),
   groupBy: optionalEnumWithDefault(
     ["sex", "race", "ethnicity", "age_group", "victim_type", "sex_race"],
-    "sex"
+    "sex",
   ).describe("How to group demographic results"),
-  limit: z.number().nullish().transform(val => val ?? 100),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
 });
 
 // --- Arrestee Demographics ---
@@ -414,19 +504,26 @@ export const GetArresteeDemographicsInput = z.object({
   offenseCode: optionalString.describe("Filter by UCR arrest offense code"),
   groupBy: optionalEnumWithDefault(
     ["sex", "race", "ethnicity", "age_group", "sex_race", "arrest_type"],
-    "sex"
+    "sex",
   ).describe("How to group demographic results"),
-  limit: z.number().nullish().transform(val => val ?? 100),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
 });
 
 // --- Crime Trends (Time Series) ---
 export const GetCrimeTrendsInput = z.object({
   stateAbbr: optionalEnum(StateAbbrEnum.options).describe("Filter by state"),
   ori: optionalString.describe("Filter by agency ORI"),
-  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe("Filter by offense code"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by offense code",
+  ),
   fromYear: z.number().int().describe("Start year"),
   toYear: z.number().int().describe("End year"),
-  granularity: optionalEnumWithDefault(["year", "month"], "year").describe("Time granularity for trend data"),
+  granularity: optionalEnumWithDefault(["year", "month"], "year").describe(
+    "Time granularity for trend data",
+  ),
 });
 
 // --- Weapon Analysis ---
@@ -435,12 +532,17 @@ export const GetWeaponAnalysisInput = z.object({
   ori: optionalString.describe("Filter by agency ORI"),
   fromYear: optionalInt.describe("Start year"),
   toYear: optionalInt.describe("End year"),
-  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe("Filter by offense code"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by offense code",
+  ),
   groupBy: optionalEnumWithDefault(
     ["weapon", "weapon_offense", "weapon_year"],
-    "weapon"
+    "weapon",
   ).describe("How to group results"),
-  limit: z.number().nullish().transform(val => val ?? 50),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
 });
 
 // --- Bias Motivation Analysis (Hate Crimes) ---
@@ -449,12 +551,17 @@ export const GetBiasAnalysisInput = z.object({
   ori: optionalString.describe("Filter by agency ORI"),
   fromYear: optionalInt.describe("Start year"),
   toYear: optionalInt.describe("End year"),
-  biasMotivation: optionalEnum(BiasMotivationEnum.options).describe("Filter by specific bias motivation"),
+  biasMotivation: optionalEnum(BiasMotivationEnum.options).describe(
+    "Filter by specific bias motivation",
+  ),
   groupBy: optionalEnumWithDefault(
     ["bias", "bias_offense", "bias_year", "bias_state"],
-    "bias"
+    "bias",
   ).describe("How to group results"),
-  limit: z.number().nullish().transform(val => val ?? 50),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
 });
 
 // --- Location Type Analysis ---
@@ -463,12 +570,17 @@ export const GetLocationAnalysisInput = z.object({
   ori: optionalString.describe("Filter by agency ORI"),
   fromYear: optionalInt.describe("Start year"),
   toYear: optionalInt.describe("End year"),
-  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe("Filter by offense code"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by offense code",
+  ),
   groupBy: optionalEnumWithDefault(
     ["location", "location_offense", "location_year"],
-    "location"
+    "location",
   ).describe("How to group results"),
-  limit: z.number().nullish().transform(val => val ?? 50),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
 });
 
 // --- Victim Injury Analysis ---
@@ -477,12 +589,17 @@ export const GetInjuryAnalysisInput = z.object({
   ori: optionalString.describe("Filter by agency ORI"),
   fromYear: optionalInt.describe("Start year"),
   toYear: optionalInt.describe("End year"),
-  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe("Filter by offense code"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by offense code",
+  ),
   groupBy: optionalEnumWithDefault(
     ["injury", "injury_offense", "injury_year"],
-    "injury"
+    "injury",
   ).describe("How to group results"),
-  limit: z.number().nullish().transform(val => val ?? 50),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
 });
 
 // --- Victim-Offender Relationship ---
@@ -491,12 +608,17 @@ export const GetRelationshipAnalysisInput = z.object({
   ori: optionalString.describe("Filter by agency ORI"),
   fromYear: optionalInt.describe("Start year"),
   toYear: optionalInt.describe("End year"),
-  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe("Filter by offense code"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by offense code",
+  ),
   groupBy: optionalEnumWithDefault(
     ["relationship", "relationship_offense", "relationship_year"],
-    "relationship"
+    "relationship",
   ).describe("How to group results"),
-  limit: z.number().nullish().transform(val => val ?? 50),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
 });
 
 // --- Clearance Analysis ---
@@ -507,9 +629,12 @@ export const GetClearanceAnalysisInput = z.object({
   toYear: optionalInt.describe("End year"),
   groupBy: optionalEnumWithDefault(
     ["clearance_type", "state", "year", "state_year"],
-    "clearance_type"
+    "clearance_type",
   ).describe("How to group results"),
-  limit: z.number().nullish().transform(val => val ?? 100),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
 });
 
 // --- Time Patterns (Hour of Day) ---
@@ -518,12 +643,17 @@ export const GetTimePatternInput = z.object({
   ori: optionalString.describe("Filter by agency ORI"),
   fromYear: optionalInt.describe("Start year"),
   toYear: optionalInt.describe("End year"),
-  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe("Filter by offense code"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by offense code",
+  ),
   groupBy: optionalEnumWithDefault(
     ["hour", "hour_offense", "month"],
-    "hour"
+    "hour",
   ).describe("How to group time patterns"),
-  limit: z.number().nullish().transform(val => val ?? 50),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
 });
 
 // --- Custom Query ---
@@ -531,9 +661,13 @@ export const ExecuteCustomQueryInput = z.object({
   sql: z
     .string()
     .describe(
-      "Custom SQL query to execute. Must be SELECT only. Available tables: agencies, administrative_segment, offense_segment, victim_segment, arrestee_segment. All in dataset 'nibrs_data'."
+      "Custom SQL query to execute. Must be SELECT only. Available tables: agencies, administrative_segment, offense_segment, victim_segment, arrestee_segment. All in dataset 'nibrs_data'.",
     ),
-  limit: z.number().nullish().transform(val => val ?? 1000).describe("Maximum rows to return (capped at 10000)"),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000)
+    .describe("Maximum rows to return (capped at 10000)"),
 });
 
 // =============================================================================

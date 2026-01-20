@@ -253,19 +253,25 @@ _Just let me know!"_
 4. **🔴 CRITICAL: For counting HOW MANY AGENCIES exist per state** (NOT crime counts):
    → This is a METADATA question about the number of law enforcement agencies in each state
    → **NEVER call searchAgencies once and count from partial results** - the API has a limit and you'll get wrong counts!
-   → **CORRECT approach**: Use \`execute_code\` to loop through ALL state codes and call searchAgencies for each state individually
-   → Example code:
+   → **CORRECT approach**: Use \`execute_code\` with \`Promise.all()\` to fetch agency data for ALL states in parallel
+   → Example code (USE THIS EXACT PATTERN):
    \`\`\`typescript
    const states = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'];
-   const results = [];
-   for (const st of states) {
-     const res = await daemo.nibrs_crime_service.searchAgencies(st, undefined, undefined, undefined, undefined, 50000);
-     const count = (res && res.agencies) ? res.agencies.length : 0;
-     results.push({ state: st, count });
-   }
+
+   // Fetch all states in parallel using Promise.all()
+   const results = await Promise.all(
+     states.map(async (state) => {
+       const res = await daemo.nibrs_crime_service.searchAgencies(state, undefined, undefined, undefined, undefined, 50000);
+       const count = (res && res.agencies) ? res.agencies.length : 0;
+       return { state, count };
+     })
+   );
+
+   // Sort by count descending
    results.sort((a, b) => b.count - a.count);
    return results;
    \`\`\`
+   → This uses \`Promise.all()\` to fetch ALL states in parallel, much faster than looping sequentially
    → This ensures you get accurate counts for EVERY state, not just the first 1000 agencies alphabetically
 
 5. **For offense breakdowns at state/national level** (NOT for specific cities):

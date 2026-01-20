@@ -216,39 +216,39 @@ const WEAPON_DESCRIPTIONS: Record<string, string> = {
 };
 
 const INJURY_DESCRIPTIONS: Record<string, string> = {
-  "B": "Apparent Broken Bones",
-  "I": "Possible Internal Injury",
-  "L": "Severe Laceration",
-  "M": "Apparent Minor Injury",
-  "N": "None",
-  "O": "Other Major Injury",
-  "T": "Loss of Teeth",
-  "U": "Unconsciousness",
+  B: "Apparent Broken Bones",
+  I: "Possible Internal Injury",
+  L: "Severe Laceration",
+  M: "Apparent Minor Injury",
+  N: "None",
+  O: "Other Major Injury",
+  T: "Loss of Teeth",
+  U: "Unconsciousness",
 };
 
 const RELATIONSHIP_DESCRIPTIONS: Record<string, string> = {
-  "AQ": "Acquaintance",
-  "BG": "Boyfriend/Girlfriend",
-  "CF": "Child of Boyfriend/Girlfriend",
-  "CH": "Child",
-  "EE": "Employee",
-  "ER": "Employer",
-  "ES": "Ex-Spouse",
-  "FR": "Friend",
-  "HR": "Homosexual Relationship",
-  "NE": "Neighbor",
-  "OF": "Otherwise Known",
-  "OK": "Other Known",
-  "PA": "Parent",
-  "RU": "Relationship Unknown",
-  "SB": "Sibling",
-  "SE": "Stepchild",
-  "SP": "Spouse",
-  "SS": "Stepsibling",
-  "ST": "Stepparent",
-  "UN": "Unknown",
-  "VO": "Victim Was Offender",
-  "XS": "Ex-Boyfriend/Ex-Girlfriend",
+  AQ: "Acquaintance",
+  BG: "Boyfriend/Girlfriend",
+  CF: "Child of Boyfriend/Girlfriend",
+  CH: "Child",
+  EE: "Employee",
+  ER: "Employer",
+  ES: "Ex-Spouse",
+  FR: "Friend",
+  HR: "Homosexual Relationship",
+  NE: "Neighbor",
+  OF: "Otherwise Known",
+  OK: "Other Known",
+  PA: "Parent",
+  RU: "Relationship Unknown",
+  SB: "Sibling",
+  SE: "Stepchild",
+  SP: "Spouse",
+  SS: "Stepsibling",
+  ST: "Stepparent",
+  UN: "Unknown",
+  VO: "Victim Was Offender",
+  XS: "Ex-Boyfriend/Ex-Girlfriend",
 };
 
 export class NIBRSCrimeFunctions {
@@ -262,7 +262,7 @@ export class NIBRSCrimeFunctions {
     if (credentialsJson) {
       try {
         // Remove surrounding quotes if present (from .env parsing)
-        const cleanedJson = credentialsJson.replace(/^['"]|['"]$/g, '');
+        const cleanedJson = credentialsJson.replace(/^['"]|['"]$/g, "");
         const credentials = JSON.parse(cleanedJson);
         this.bigquery = new BigQuery({
           projectId: PROJECT_ID,
@@ -270,15 +270,22 @@ export class NIBRSCrimeFunctions {
         });
         console.log("[BigQuery] Initialized with service account credentials");
       } catch (error: any) {
-        console.error("[BigQuery] Failed to parse credentials JSON:", error.message);
-        console.log("[BigQuery] Falling back to Application Default Credentials");
+        console.error(
+          "[BigQuery] Failed to parse credentials JSON:",
+          error.message,
+        );
+        console.log(
+          "[BigQuery] Falling back to Application Default Credentials",
+        );
         this.bigquery = new BigQuery({
           projectId: PROJECT_ID,
         });
       }
     } else {
       // Fallback to default credentials (ADC)
-      console.log("[BigQuery] No credentials JSON found, using Application Default Credentials");
+      console.log(
+        "[BigQuery] No credentials JSON found, using Application Default Credentials",
+      );
       this.bigquery = new BigQuery({
         projectId: PROJECT_ID,
       });
@@ -301,7 +308,9 @@ export class NIBRSCrimeFunctions {
 
   private buildWhereClause(conditions: string[]): string {
     const validConditions = conditions.filter((c) => c.length > 0);
-    return validConditions.length > 0 ? `WHERE ${validConditions.join(" AND ")}` : "";
+    return validConditions.length > 0
+      ? `WHERE ${validConditions.join(" AND ")}`
+      : "";
   }
 
   // =========================================================================
@@ -310,7 +319,7 @@ export class NIBRSCrimeFunctions {
 
   @DaemoFunction({
     description:
-      "Search for law enforcement agency metadata (names, ORIs, locations). Use this ONLY to find agency ORI identifiers for a specific city/county - NOT for counting agencies or aggregating by state. CRITICAL: This function has pagination limits (max 1000 results per call) and returns partial results. To count how many agencies exist per state, you MUST loop through all state codes calling this function for each state individually (see system prompt section 4). For crime statistics or comparisons, use getIncidentCounts instead.",
+      "Search for law enforcement agency metadata (names, ORIs, locations). Use this ONLY to find agency ORI identifiers for a specific city/county - NOT for counting agencies or aggregating by state. CRITICAL: This function has pagination limits (max 10000 results per call) and returns partial results. To count how many agencies exist per state, you MUST loop through all state codes calling this function for each state individually (see system prompt section 4). For crime statistics or comparisons, use getIncidentCounts instead.",
     tags: ["nibrs", "agency", "search", "ori", "metadata"],
     category: "NIBRS",
     inputSchema: SearchAgenciesInput,
@@ -326,17 +335,21 @@ export class NIBRSCrimeFunctions {
       conditions.push(`LOWER(counties) LIKE '%${input.county.toLowerCase()}%'`);
     }
     if (input.agencyName) {
-      conditions.push(`LOWER(agency_name) LIKE '%${input.agencyName.toLowerCase()}%'`);
+      conditions.push(
+        `LOWER(agency_name) LIKE '%${input.agencyName.toLowerCase()}%'`,
+      );
     }
     if (input.agencyType) {
-      conditions.push(`LOWER(agency_type_name) LIKE '%${input.agencyType.toLowerCase()}%'`);
+      conditions.push(
+        `LOWER(agency_type_name) LIKE '%${input.agencyType.toLowerCase()}%'`,
+      );
     }
     if (input.nibrsOnly) {
       conditions.push(`is_nibrs = TRUE`);
     }
 
     const whereClause = this.buildWhereClause(conditions);
-    const limit = Math.min(input.limit || 100, 1000);
+    const limit = Math.min(input.limit || 100, 10000);
 
     const sql = `
       SELECT
@@ -370,7 +383,19 @@ export class NIBRSCrimeFunctions {
   @DaemoFunction({
     description:
       "Get crime incident counts, rates, and comparisons from NIBRS data. This is the PRIMARY function for: (1) Comparing crime across agencies/cities/departments - use groupBy:'agency', (2) Getting homicide/murder counts by agency - use offenseCode:'09A' with groupBy:'agency', (3) Comparing crime rates between states - use groupBy:'state', (4) Ranking agencies by crime type - use groupBy:'agency' with offenseCode, (5) Year-over-year agency trends - use groupBy:'agency_year'. Returns aggregated counts that can be used to calculate crime rates.",
-    tags: ["nibrs", "incidents", "counts", "statistics", "homicide", "murder", "crime-rate", "compare", "comparison", "agency-comparison", "ranking"],
+    tags: [
+      "nibrs",
+      "incidents",
+      "counts",
+      "statistics",
+      "homicide",
+      "murder",
+      "crime-rate",
+      "compare",
+      "comparison",
+      "agency-comparison",
+      "ranking",
+    ],
     category: "NIBRS",
     inputSchema: GetIncidentCountsInput,
     outputSchema: CountResultOutput,
@@ -404,38 +429,45 @@ export class NIBRSCrimeFunctions {
 
     switch (input.groupBy) {
       case "state":
-        selectClause = "ag.state_abbr as state, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count";
+        selectClause =
+          "ag.state_abbr as state, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count";
         groupByClause = "GROUP BY ag.state_abbr";
         orderByClause = "ORDER BY incident_count DESC";
         break;
       case "agency":
-        selectClause = "a.ori, ag.agency_name, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count";
+        selectClause =
+          "a.ori, ag.agency_name, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count";
         groupByClause = "GROUP BY a.ori, ag.agency_name";
         orderByClause = "ORDER BY incident_count DESC";
         break;
       case "offense":
-        selectClause = "o.ucr_offense_code as offense_code, COUNT(*) as offense_count";
+        selectClause =
+          "o.ucr_offense_code as offense_code, COUNT(*) as offense_count";
         groupByClause = "GROUP BY o.ucr_offense_code";
         orderByClause = "ORDER BY offense_count DESC";
         break;
       case "state_year":
-        selectClause = "ag.state_abbr as state, a.data_year as year, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count";
+        selectClause =
+          "ag.state_abbr as state, a.data_year as year, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count";
         groupByClause = "GROUP BY ag.state_abbr, a.data_year";
         orderByClause = "ORDER BY ag.state_abbr, a.data_year";
         break;
       case "offense_year":
-        selectClause = "o.ucr_offense_code as offense_code, a.data_year as year, COUNT(*) as offense_count";
+        selectClause =
+          "o.ucr_offense_code as offense_code, a.data_year as year, COUNT(*) as offense_count";
         groupByClause = "GROUP BY o.ucr_offense_code, a.data_year";
         orderByClause = "ORDER BY o.ucr_offense_code, a.data_year";
         break;
       case "agency_year":
-        selectClause = "a.ori, ag.agency_name, a.data_year as year, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count";
+        selectClause =
+          "a.ori, ag.agency_name, a.data_year as year, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count";
         groupByClause = "GROUP BY a.ori, ag.agency_name, a.data_year";
         orderByClause = "ORDER BY ag.agency_name, a.data_year";
         break;
       case "year":
       default:
-        selectClause = "a.data_year as year, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count";
+        selectClause =
+          "a.data_year as year, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count";
         groupByClause = "GROUP BY a.data_year";
         orderByClause = "ORDER BY a.data_year";
         break;
@@ -460,7 +492,8 @@ export class NIBRSCrimeFunctions {
     if (input.groupBy === "offense" || input.groupBy === "offense_year") {
       rows.forEach((row: any) => {
         if (row.offense_code) {
-          row.offense_description = UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
+          row.offense_description =
+            UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
         }
       });
     }
@@ -511,7 +544,7 @@ export class NIBRSCrimeFunctions {
     }
 
     const whereClause = this.buildWhereClause(conditions);
-    const limit = Math.min(input.limit || 100, 1000);
+    const limit = Math.min(input.limit || 100, 10000);
 
     let selectClause: string;
     let groupByClause: string;
@@ -528,7 +561,8 @@ export class NIBRSCrimeFunctions {
         descriptionField = "location_type";
         break;
       case "weapon":
-        selectClause = "o.type_weapon_force_involved1 as weapon_code, COUNT(*) as count";
+        selectClause =
+          "o.type_weapon_force_involved1 as weapon_code, COUNT(*) as count";
         groupByClause = "GROUP BY o.type_weapon_force_involved1";
         orderByClause = "ORDER BY count DESC";
         descriptionMap = WEAPON_DESCRIPTIONS;
@@ -542,7 +576,8 @@ export class NIBRSCrimeFunctions {
         descriptionField = "bias_motivation";
         break;
       case "offense_year":
-        selectClause = "o.ucr_offense_code as offense_code, o.data_year as year, COUNT(*) as count";
+        selectClause =
+          "o.ucr_offense_code as offense_code, o.data_year as year, COUNT(*) as count";
         groupByClause = "GROUP BY o.ucr_offense_code, o.data_year";
         orderByClause = "ORDER BY o.ucr_offense_code, o.data_year";
         descriptionMap = UCR_OFFENSE_DESCRIPTIONS;
@@ -600,7 +635,9 @@ export class NIBRSCrimeFunctions {
     inputSchema: GetVictimDemographicsInput,
     outputSchema: DemographicOutput,
   })
-  async getVictimDemographics(input: z.infer<typeof GetVictimDemographicsInput>) {
+  async getVictimDemographics(
+    input: z.infer<typeof GetVictimDemographicsInput>,
+  ) {
     const conditions: string[] = [];
 
     // State filtering requires join to agencies table (state_code is numeric FIPS, not abbreviation)
@@ -737,7 +774,10 @@ export class NIBRSCrimeFunctions {
     `;
 
     const rows = await this.runQuery(sql);
-    const totalCount = rows.reduce((sum: number, row: any) => sum + (row.count || 0), 0);
+    const totalCount = rows.reduce(
+      (sum: number, row: any) => sum + (row.count || 0),
+      0,
+    );
 
     return {
       results: rows,
@@ -757,7 +797,9 @@ export class NIBRSCrimeFunctions {
     inputSchema: GetArresteeDemographicsInput,
     outputSchema: DemographicOutput,
   })
-  async getArresteeDemographics(input: z.infer<typeof GetArresteeDemographicsInput>) {
+  async getArresteeDemographics(
+    input: z.infer<typeof GetArresteeDemographicsInput>,
+  ) {
     const conditions: string[] = [];
 
     // State filtering requires join to agencies table (state_code is numeric FIPS, not abbreviation)
@@ -778,7 +820,7 @@ export class NIBRSCrimeFunctions {
     }
 
     const whereClause = this.buildWhereClause(conditions);
-    const limit = Math.min(input.limit || 100, 1000);
+    const limit = Math.min(input.limit || 100, 10000);
 
     let selectClause: string;
     let groupByClause: string;
@@ -886,7 +928,10 @@ export class NIBRSCrimeFunctions {
     `;
 
     const rows = await this.runQuery(sql);
-    const totalCount = rows.reduce((sum: number, row: any) => sum + (row.count || 0), 0);
+    const totalCount = rows.reduce(
+      (sum: number, row: any) => sum + (row.count || 0),
+      0,
+    );
 
     return {
       results: rows,
@@ -958,7 +1003,10 @@ export class NIBRSCrimeFunctions {
     `;
 
     const rows = await this.runQuery(sql);
-    const totalCount = rows.reduce((sum: number, row: any) => sum + (row.count || 0), 0);
+    const totalCount = rows.reduce(
+      (sum: number, row: any) => sum + (row.count || 0),
+      0,
+    );
 
     const title = input.offenseCode
       ? `${UCR_OFFENSE_DESCRIPTIONS[input.offenseCode] || input.offenseCode} Trends`
@@ -1009,7 +1057,7 @@ export class NIBRSCrimeFunctions {
     }
 
     const whereClause = this.buildWhereClause(conditions);
-    const limit = Math.min(input.limit || 50, 500);
+    const limit = Math.min(input.limit || 50, 10000);
 
     let selectClause: string;
     let groupByClause: string;
@@ -1017,18 +1065,22 @@ export class NIBRSCrimeFunctions {
 
     switch (input.groupBy) {
       case "weapon_offense":
-        selectClause = "o.type_weapon_force_involved1 as weapon_code, o.ucr_offense_code as offense_code, COUNT(*) as count";
-        groupByClause = "GROUP BY o.type_weapon_force_involved1, o.ucr_offense_code";
+        selectClause =
+          "o.type_weapon_force_involved1 as weapon_code, o.ucr_offense_code as offense_code, COUNT(*) as count";
+        groupByClause =
+          "GROUP BY o.type_weapon_force_involved1, o.ucr_offense_code";
         orderByClause = "ORDER BY count DESC";
         break;
       case "weapon_year":
-        selectClause = "o.type_weapon_force_involved1 as weapon_code, o.data_year as year, COUNT(*) as count";
+        selectClause =
+          "o.type_weapon_force_involved1 as weapon_code, o.data_year as year, COUNT(*) as count";
         groupByClause = "GROUP BY o.type_weapon_force_involved1, o.data_year";
         orderByClause = "ORDER BY o.data_year, count DESC";
         break;
       case "weapon":
       default:
-        selectClause = "o.type_weapon_force_involved1 as weapon_code, COUNT(*) as count";
+        selectClause =
+          "o.type_weapon_force_involved1 as weapon_code, COUNT(*) as count";
         groupByClause = "GROUP BY o.type_weapon_force_involved1";
         orderByClause = "ORDER BY count DESC";
         break;
@@ -1050,10 +1102,12 @@ export class NIBRSCrimeFunctions {
     // Add descriptions
     rows.forEach((row: any) => {
       if (row.weapon_code) {
-        row.weapon_description = WEAPON_DESCRIPTIONS[row.weapon_code] || "Unknown";
+        row.weapon_description =
+          WEAPON_DESCRIPTIONS[row.weapon_code] || "Unknown";
       }
       if (row.offense_code) {
-        row.offense_description = UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
+        row.offense_description =
+          UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
       }
     });
 
@@ -1099,7 +1153,7 @@ export class NIBRSCrimeFunctions {
     }
 
     const whereClause = this.buildWhereClause(conditions);
-    const limit = Math.min(input.limit || 50, 500);
+    const limit = Math.min(input.limit || 50, 10000);
 
     let selectClause: string;
     let groupByClause: string;
@@ -1107,17 +1161,20 @@ export class NIBRSCrimeFunctions {
 
     switch (input.groupBy) {
       case "bias_offense":
-        selectClause = "o.bias_motivation, o.ucr_offense_code as offense_code, COUNT(*) as count";
+        selectClause =
+          "o.bias_motivation, o.ucr_offense_code as offense_code, COUNT(*) as count";
         groupByClause = "GROUP BY o.bias_motivation, o.ucr_offense_code";
         orderByClause = "ORDER BY count DESC";
         break;
       case "bias_year":
-        selectClause = "o.bias_motivation, o.data_year as year, COUNT(*) as count";
+        selectClause =
+          "o.bias_motivation, o.data_year as year, COUNT(*) as count";
         groupByClause = "GROUP BY o.bias_motivation, o.data_year";
         orderByClause = "ORDER BY o.data_year, count DESC";
         break;
       case "bias_state":
-        selectClause = "o.bias_motivation, ag.state_abbr as state, COUNT(*) as count";
+        selectClause =
+          "o.bias_motivation, ag.state_abbr as state, COUNT(*) as count";
         groupByClause = "GROUP BY o.bias_motivation, ag.state_abbr";
         orderByClause = "ORDER BY count DESC";
         break;
@@ -1145,10 +1202,12 @@ export class NIBRSCrimeFunctions {
     // Add descriptions
     rows.forEach((row: any) => {
       if (row.bias_motivation) {
-        row.bias_description = BIAS_DESCRIPTIONS[row.bias_motivation] || "Unknown";
+        row.bias_description =
+          BIAS_DESCRIPTIONS[row.bias_motivation] || "Unknown";
       }
       if (row.offense_code) {
-        row.offense_description = UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
+        row.offense_description =
+          UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
       }
     });
 
@@ -1193,7 +1252,7 @@ export class NIBRSCrimeFunctions {
     }
 
     const whereClause = this.buildWhereClause(conditions);
-    const limit = Math.min(input.limit || 50, 500);
+    const limit = Math.min(input.limit || 50, 10000);
 
     let selectClause: string;
     let groupByClause: string;
@@ -1201,12 +1260,14 @@ export class NIBRSCrimeFunctions {
 
     switch (input.groupBy) {
       case "location_offense":
-        selectClause = "o.location_type, o.ucr_offense_code as offense_code, COUNT(*) as count";
+        selectClause =
+          "o.location_type, o.ucr_offense_code as offense_code, COUNT(*) as count";
         groupByClause = "GROUP BY o.location_type, o.ucr_offense_code";
         orderByClause = "ORDER BY count DESC";
         break;
       case "location_year":
-        selectClause = "o.location_type, o.data_year as year, COUNT(*) as count";
+        selectClause =
+          "o.location_type, o.data_year as year, COUNT(*) as count";
         groupByClause = "GROUP BY o.location_type, o.data_year";
         orderByClause = "ORDER BY o.data_year, count DESC";
         break;
@@ -1234,10 +1295,12 @@ export class NIBRSCrimeFunctions {
     // Add descriptions
     rows.forEach((row: any) => {
       if (row.location_type) {
-        row.location_description = LOCATION_TYPE_DESCRIPTIONS[row.location_type] || "Unknown";
+        row.location_description =
+          LOCATION_TYPE_DESCRIPTIONS[row.location_type] || "Unknown";
       }
       if (row.offense_code) {
-        row.offense_description = UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
+        row.offense_description =
+          UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
       }
     });
 
@@ -1282,7 +1345,7 @@ export class NIBRSCrimeFunctions {
     }
 
     const whereClause = this.buildWhereClause(conditions);
-    const limit = Math.min(input.limit || 50, 500);
+    const limit = Math.min(input.limit || 50, 10000);
 
     let selectClause: string;
     let groupByClause: string;
@@ -1290,12 +1353,14 @@ export class NIBRSCrimeFunctions {
 
     switch (input.groupBy) {
       case "injury_offense":
-        selectClause = "v.type_of_injury1 as injury_code, v.ucr_offense_code1 as offense_code, COUNT(*) as count";
+        selectClause =
+          "v.type_of_injury1 as injury_code, v.ucr_offense_code1 as offense_code, COUNT(*) as count";
         groupByClause = "GROUP BY v.type_of_injury1, v.ucr_offense_code1";
         orderByClause = "ORDER BY count DESC";
         break;
       case "injury_year":
-        selectClause = "v.type_of_injury1 as injury_code, v.data_year as year, COUNT(*) as count";
+        selectClause =
+          "v.type_of_injury1 as injury_code, v.data_year as year, COUNT(*) as count";
         groupByClause = "GROUP BY v.type_of_injury1, v.data_year";
         orderByClause = "ORDER BY v.data_year, count DESC";
         break;
@@ -1323,10 +1388,12 @@ export class NIBRSCrimeFunctions {
     // Add descriptions
     rows.forEach((row: any) => {
       if (row.injury_code) {
-        row.injury_description = INJURY_DESCRIPTIONS[row.injury_code] || "Unknown";
+        row.injury_description =
+          INJURY_DESCRIPTIONS[row.injury_code] || "Unknown";
       }
       if (row.offense_code) {
-        row.offense_description = UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
+        row.offense_description =
+          UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
       }
     });
 
@@ -1344,12 +1411,21 @@ export class NIBRSCrimeFunctions {
   @DaemoFunction({
     description:
       "Analyze victim-offender relationships (family, acquaintance, stranger). Use this to understand WHO commits crimes against whom - NOT for crime counts or agency comparisons. For crime counts, rates, or comparing agencies, use getIncidentCounts instead.",
-    tags: ["nibrs", "relationship", "victim", "offender", "domestic", "stranger"],
+    tags: [
+      "nibrs",
+      "relationship",
+      "victim",
+      "offender",
+      "domestic",
+      "stranger",
+    ],
     category: "NIBRS",
     inputSchema: GetRelationshipAnalysisInput,
     outputSchema: CountResultOutput,
   })
-  async getRelationshipAnalysis(input: z.infer<typeof GetRelationshipAnalysisInput>) {
+  async getRelationshipAnalysis(
+    input: z.infer<typeof GetRelationshipAnalysisInput>,
+  ) {
     const conditions: string[] = [];
     conditions.push("v.victim_relationship_to_offender1 IS NOT NULL");
 
@@ -1371,7 +1447,7 @@ export class NIBRSCrimeFunctions {
     }
 
     const whereClause = this.buildWhereClause(conditions);
-    const limit = Math.min(input.limit || 50, 500);
+    const limit = Math.min(input.limit || 50, 10000);
 
     let selectClause: string;
     let groupByClause: string;
@@ -1379,18 +1455,23 @@ export class NIBRSCrimeFunctions {
 
     switch (input.groupBy) {
       case "relationship_offense":
-        selectClause = "v.victim_relationship_to_offender1 as relationship_code, v.ucr_offense_code1 as offense_code, COUNT(*) as count";
-        groupByClause = "GROUP BY v.victim_relationship_to_offender1, v.ucr_offense_code1";
+        selectClause =
+          "v.victim_relationship_to_offender1 as relationship_code, v.ucr_offense_code1 as offense_code, COUNT(*) as count";
+        groupByClause =
+          "GROUP BY v.victim_relationship_to_offender1, v.ucr_offense_code1";
         orderByClause = "ORDER BY count DESC";
         break;
       case "relationship_year":
-        selectClause = "v.victim_relationship_to_offender1 as relationship_code, v.data_year as year, COUNT(*) as count";
-        groupByClause = "GROUP BY v.victim_relationship_to_offender1, v.data_year";
+        selectClause =
+          "v.victim_relationship_to_offender1 as relationship_code, v.data_year as year, COUNT(*) as count";
+        groupByClause =
+          "GROUP BY v.victim_relationship_to_offender1, v.data_year";
         orderByClause = "ORDER BY v.data_year, count DESC";
         break;
       case "relationship":
       default:
-        selectClause = "v.victim_relationship_to_offender1 as relationship_code, COUNT(*) as count";
+        selectClause =
+          "v.victim_relationship_to_offender1 as relationship_code, COUNT(*) as count";
         groupByClause = "GROUP BY v.victim_relationship_to_offender1";
         orderByClause = "ORDER BY count DESC";
         break;
@@ -1412,10 +1493,12 @@ export class NIBRSCrimeFunctions {
     // Add descriptions
     rows.forEach((row: any) => {
       if (row.relationship_code) {
-        row.relationship_description = RELATIONSHIP_DESCRIPTIONS[row.relationship_code] || "Unknown";
+        row.relationship_description =
+          RELATIONSHIP_DESCRIPTIONS[row.relationship_code] || "Unknown";
       }
       if (row.offense_code) {
-        row.offense_description = UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
+        row.offense_description =
+          UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
       }
     });
 
@@ -1456,7 +1539,7 @@ export class NIBRSCrimeFunctions {
     }
 
     const whereClause = this.buildWhereClause(conditions);
-    const limit = Math.min(input.limit || 100, 1000);
+    const limit = Math.min(input.limit || 100, 10000);
 
     let selectClause: string;
     let groupByClause: string;
@@ -1568,7 +1651,7 @@ export class NIBRSCrimeFunctions {
       conditions.push(`o.ucr_offense_code = '${input.offenseCode}'`);
     }
 
-    const limit = Math.min(input.limit || 50, 500);
+    const limit = Math.min(input.limit || 50, 10000);
 
     let selectClause: string;
     let groupByClause: string;
@@ -1576,12 +1659,14 @@ export class NIBRSCrimeFunctions {
 
     switch (input.groupBy) {
       case "hour_offense":
-        selectClause = "a.incident_date_hour as hour, o.ucr_offense_code as offense_code, COUNT(*) as count";
+        selectClause =
+          "a.incident_date_hour as hour, o.ucr_offense_code as offense_code, COUNT(*) as count";
         groupByClause = "GROUP BY a.incident_date_hour, o.ucr_offense_code";
         orderByClause = "ORDER BY count DESC";
         break;
       case "month":
-        selectClause = "EXTRACT(MONTH FROM a.incident_date) as month, COUNT(*) as count";
+        selectClause =
+          "EXTRACT(MONTH FROM a.incident_date) as month, COUNT(*) as count";
         groupByClause = "GROUP BY month";
         orderByClause = "ORDER BY month";
         break;
@@ -1605,7 +1690,7 @@ export class NIBRSCrimeFunctions {
       JOIN \`${PROJECT_ID}.${DATASET}.offense_segment\` o
         ON a.ori = o.ori AND a.incident_number = o.incident_number AND a.data_year = o.data_year
       JOIN \`${PROJECT_ID}.${DATASET}.agencies\` ag ON a.ori = ag.ori
-      ${this.buildWhereClause(conditions.filter(c => c.length > 0))}
+      ${this.buildWhereClause(conditions.filter((c) => c.length > 0))}
       ${groupByClause}
       ${orderByClause}
       LIMIT ${limit}
@@ -1616,11 +1701,25 @@ export class NIBRSCrimeFunctions {
     // Add descriptions
     rows.forEach((row: any) => {
       if (row.offense_code) {
-        row.offense_description = UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
+        row.offense_description =
+          UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
       }
       if (row.month !== undefined) {
-        const months = ["", "January", "February", "March", "April", "May", "June",
-                       "July", "August", "September", "October", "November", "December"];
+        const months = [
+          "",
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
         row.month_name = months[row.month] || "Unknown";
       }
     });
@@ -1648,20 +1747,40 @@ export class NIBRSCrimeFunctions {
     // Security: Only allow SELECT queries
     const sqlTrimmed = input.sql.trim().toUpperCase();
     if (!sqlTrimmed.startsWith("SELECT")) {
-      throw new Error("Only SELECT queries are allowed. Query must start with SELECT.");
+      throw new Error(
+        "Only SELECT queries are allowed. Query must start with SELECT.",
+      );
     }
 
     // Check for dangerous keywords
-    const dangerousKeywords = ["INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER", "TRUNCATE", "GRANT", "REVOKE"];
+    const dangerousKeywords = [
+      "INSERT",
+      "UPDATE",
+      "DELETE",
+      "DROP",
+      "CREATE",
+      "ALTER",
+      "TRUNCATE",
+      "GRANT",
+      "REVOKE",
+    ];
     for (const keyword of dangerousKeywords) {
       if (sqlTrimmed.includes(keyword)) {
-        throw new Error(`Query contains forbidden keyword: ${keyword}. Only SELECT queries are allowed.`);
+        throw new Error(
+          `Query contains forbidden keyword: ${keyword}. Only SELECT queries are allowed.`,
+        );
       }
     }
 
     // Replace table references with fully qualified names if not already qualified
     let sql = input.sql;
-    const tables = ["agencies", "administrative_segment", "offense_segment", "victim_segment", "arrestee_segment"];
+    const tables = [
+      "agencies",
+      "administrative_segment",
+      "offense_segment",
+      "victim_segment",
+      "arrestee_segment",
+    ];
     for (const table of tables) {
       // Match table name not already qualified (negative lookbehind for '.')
       const regex = new RegExp(`(?<!\\.)\\b${table}\\b`, "gi");
