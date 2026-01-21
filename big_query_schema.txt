@@ -1,0 +1,270 @@
+# NIBRS Crime Data - BigQuery Schema
+
+You have access to FBI NIBRS (National Incident-Based Reporting System) crime data in BigQuery. Use this schema to write SQL queries.
+
+## Dataset: `daemo-daemon-testing.nibrs_data`
+
+---
+
+## Tables
+
+### `agencies`
+Reference table for law enforcement agencies. **Join on `ori` field.**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| ori | STRING | Primary key. 9-character agency identifier (e.g., 'CA0010100') |
+| agency_name | STRING | Full agency name (e.g., 'Los Angeles Police Department') |
+| city_name | STRING | City where agency is located |
+| state_abbr | STRING | Two-letter state code (e.g., 'CA') |
+| state_code | STRING | Two-digit numeric state FIPS code |
+| county_code | STRING | County FIPS code |
+| population | STRING | Population served by agency (cast to INT64 for calculations) |
+| msa_code | STRING | Metropolitan Statistical Area code |
+
+### `administrative_segment`
+One row per crime incident. Primary incident-level table.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| ori | STRING | FK → agencies.ori |
+| incident_number | STRING | Agency case number (unique within agency) |
+| incident_date | DATE | Date incident occurred |
+| incident_date_hour | INT64 | Hour of day (0-23) |
+| data_year | INT64 | Year reported (2020-2025) |
+| total_offense_segments | INT64 | Number of offenses |
+| total_victim_segments | INT64 | Number of victims |
+| total_offender_segments | INT64 | Number of offenders |
+| total_arrestee_segments | INT64 | Number of arrestees |
+| cleared_exceptionally | STRING | 'A'=Death of Offender, 'B'=Prosecution Declined, 'N'=Not Applicable |
+
+### `offense_segment`
+One row per offense. An incident can have multiple offenses.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| ori | STRING | FK → agencies.ori |
+| incident_number | STRING | Links to administrative_segment |
+| incident_date | DATE | Date incident occurred |
+| data_year | INT64 | Year reported |
+| ucr_offense_code | STRING | FBI offense code (see below) |
+| offense_attempted_or_completed | STRING | 'A'=Attempted, 'C'=Completed |
+| location_type | STRING | Two-digit location code |
+| bias_motivation | STRING | Hate crime bias code ('88'=None) |
+| type_weapon_force_involved1 | STRING | Weapon code |
+
+### `victim_segment`
+One row per victim.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| ori | STRING | FK → agencies.ori |
+| incident_number | STRING | Links to administrative_segment |
+| incident_date | DATE | Date incident occurred |
+| data_year | INT64 | Year reported |
+| victim_sequence_number | INT64 | Victim number (1, 2, 3...) |
+| type_of_victim | STRING | 'I'=Individual, 'B'=Business, 'L'=Law Enforcement Officer |
+| age_of_victim | STRING | Age ('01'-'99', 'NB'=Newborn) |
+| sex_of_victim | STRING | 'M'=Male, 'F'=Female, 'U'=Unknown |
+| race_of_victim | STRING | 'W'=White, 'B'=Black, 'A'=Asian, 'I'=Native American |
+| ucr_offense_code1 | STRING | Primary offense affecting victim |
+
+### `arrestee_segment`
+One row per arrestee.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| ori | STRING | FK → agencies.ori |
+| incident_number | STRING | Links to administrative_segment |
+| arrest_date | DATE | Date of arrest |
+| data_year | INT64 | Year reported |
+| ucr_arrest_offense_code | STRING | Offense code for arrest |
+| age_of_arrestee | STRING | Age |
+| sex_of_arrestee | STRING | 'M', 'F', 'U' |
+| race_of_arrestee | STRING | Race code |
+| type_of_arrest | STRING | 'O'=On-View, 'S'=Summoned, 'T'=Taken Into Custody |
+
+---
+
+## Key UCR Offense Codes
+
+| Code | Description |
+|------|-------------|
+| 09A | Murder & Nonnegligent Manslaughter |
+| 09B | Negligent Manslaughter |
+| 11A | Rape |
+| 120 | Robbery |
+| 13A | Aggravated Assault |
+| 13B | Simple Assault |
+| 220 | Burglary |
+| 23H | Larceny/Theft (All Other) |
+| 240 | Motor Vehicle Theft |
+| 290 | Vandalism |
+| 35A | Drug Violations |
+| 520 | Weapon Law Violations |
+
+---
+
+## Common Query Patterns
+
+### Join tables on ori AND incident_number:
+```sql
+FROM administrative_segment a
+JOIN offense_segment o ON a.ori = o.ori AND a.incident_number = o.incident_number
+JOIN agencies ag ON a.ori = ag.ori
+```
+
+### Filter by year:
+```sql
+WHERE data_year = 2024
+```
+
+### Filter by state:
+```sql
+JOIN agencies ag ON o.ori = ag.ori
+WHERE ag.state_abbr = 'CA'
+```
+
+### Count distinct incidents:
+```sql
+COUNT(DISTINCT CONCAT(ori, '-', incident_number)) as incident_count
+```
+
+### Calculate crime rate per 100k:
+```sql
+COUNT(*) * 100000.0 / MAX(CAST(ag.population AS INT64)) as rate_per_100k
+```
+
+---
+
+## Example Queries
+
+### Homicides by State
+```sql
+SELECT ag.state_abbr, COUNT(*) as homicides
+FROM nibrs_data.offense_segment o
+JOIN nibrs_data.agencies ag ON o.ori = ag.ori
+WHERE o.ucr_offense_code = '09A' AND o.data_year = 2024
+GROUP BY 1 ORDER BY 2 DESC
+```
+
+### Crime Rate by Agency
+```sql
+SELECT 
+    ag.agency_name,
+    ag.state_abbr,
+    COUNT(*) as crimes,
+    CAST(ag.population AS INT64) as population,
+    ROUND(COUNT(*) * 100000.0 / CAST(ag.population AS INT64), 2) as rate_per_100k
+FROM nibrs_data.offense_segment o
+JOIN nibrs_data.agencies ag ON o.ori = ag.ori
+WHERE o.data_year = 2024 AND CAST(ag.population AS INT64) > 100000
+GROUP BY 1, 2, 4
+ORDER BY 5 DESC
+LIMIT 20
+```
+
+### Victim Demographics
+```sql
+SELECT sex_of_victim, race_of_victim, COUNT(*) as count
+FROM nibrs_data.victim_segment
+WHERE type_of_victim = 'I' AND data_year = 2024
+GROUP BY 1, 2 ORDER BY 3 DESC
+```
+
+And here are the first 10 rows for each table in the database:
+
+```sql
+SELECT *
+FROM `daemo-daemon-testing.nibrs_data.administrative_segment`
+LIMIT 10
+```
+segment_level	state_code	ori	incident_number	incident_date	report_date_indicator	incident_date_hour	total_offense_segments	total_victim_segments	total_offender_segments	total_arrestee_segments	city_submission	cleared_exceptionally	exceptional_clearance_date	data_year	db_id
+1	50	AK0010500	UG-W84JHSCTD	2020-11-07		15	1	1	2	0		N		2020	2020_53
+1	1	AL0010000	2W2HPU72JLKD	2020-01-18		13	1	1	1	0		N		2020	2020_82
+1	1	AL0010700	8N2URD0W32AU	2020-05-20	R	0	1	1	1	0		N		2020	2020_486
+1	1	AL0011200	7N6HVARLZITJ	2020-05-01		12	1	1	1	0		N		2020	2020_3862
+1	1	AL0011200	2W2HPU7NSX6I	2020-07-25		13	1	2	3	2		N		2020	2020_1998
+1	1	AL0011200	2W2HPU7V8CKI	2020-08-08		20	1	1	1	0		D		2020	2020_3129
+1	1	AL0011200	2W2HPU7OU6B	2020-09-26		17	1	1	1	1		N		2020	2020_2339
+1	1	AL0011200	2W2HPU7LLXJD	2020-10-29		3	1	1	1	0		N		2020	2020_1693
+1	1	AL0011200	2W2HPU7Z9C2X	2020-03-03		18	1	1	1	1		N		2020	2020_3539
+1	1	AL0011200	2W2HPU7NJG X	2020-07-18		20	1	1	3	0		N		2020	2020_1927
+
+
+```sql
+SELECT *
+FROM `daemo-daemon-testing.nibrs_data.agencies`
+LIMIT 10
+```
+ori	counties	is_nibrs	latitude	longitude	state_abbr	state_name	agency_name	agency_type_name	nibrs_start_date
+AL0032500	MONTGOMERY	true			AL	Alabama	"Department of Conservation, Montgomery"	Other State Agency	2020-11-01
+AL0080800	BLOUNT	true			AL	Alabama	Hayden Police Department	City	2021-01-01
+AL0460400	MACON	true			AL	Alabama	Franklin Police Department	City	2021-01-01
+AL0620800	TALLAPOOSA	true			AL	Alabama	Central Alabama Community College	University or College	2022-09-01
+AL052015A	MORGAN	false			AL	Alabama	District Attorney: 8th Circuit	Other	
+AL0501100	MARSHALL	true			AL	Alabama	Snead State Community College	University or College	2023-04-01
+AL0230900	COVINGTON	true			AL	Alabama	Lurleen B. Wallace Community College	University or College	2021-09-01
+AL0530400	PERRY	true			AL	Alabama	Marion Military Institute	University or College	2023-01-01
+AL054015A	PICKENS	true			AL	Alabama	District Attorney: 24th Circuit	Other	2012-10-01
+AL0033100	NOT SPECIFIED	true			AL	Alabama	Alabama Drug Enforcement Task Force	Other State Agency	2021-03-01
+
+
+
+```sql
+SELECT *
+FROM `daemo-daemon-testing.nibrs_data.arrestee_segment`
+LIMIT 10
+```
+segment_level	state_code	ori	incident_number	incident_date	arrestee_sequence_number	arrest_transaction_number	arrest_date	type_of_arrest	multiple_arrestee_segment_indicator	ucr_arrest_offense_code	type_weapon_involved1	automatic_weapon_indicator1	type_weapon_involved2	automatic_weapon_indicator2	age_of_arrestee	sex_of_arrestee	race_of_arrestee	ethnicity_of_arrestee	residence_status_of_arrestee	disposition_arrestee_under_18	data_year	db_id
+6	50	AK0012200	HQ2HPUXVZ21A	2020-12-17	1	117517212	2021-01-18	T	N	220	1				42	M	W		R		2020	2020_12
+6	1	AL0010500	QNAYTGDAEX 4	2020-05-02	1	BA9136BA19D5	2020-05-02	S	N	35A	1				39	M	B	N	N		2020	2020_79
+6	1	AL0010900	DN4YBNI96HM5	2020-05-06	1	6BFB82A690B5	2020-05-06	O	N	35A	12				29	M	B	N	N		2020	2020_142
+6	1	AL0011200	2W2HPU7367TI	2020-02-23	1	6638	2020-02-23	O	M	23C	1				42	M	W	N	N		2020	2020_283
+6	1	AL0011200	2W2HPU73SLBI	2020-02-19	1	6594	2020-02-19	O	C	35A	1				43	M	W	N	N		2020	2020_347
+6	1	AL0011200	2W2HPU7L972W	2020-10-24	1	8000	2020-10-24	O	C	35A	16				21	M	B	N	N		2020	2020_442
+6	1	AL0011200	2W2HPU7 S6J8	2020-06-11	1	7153	2020-06-11	O	C	13B	16				30	F	U	N	R		2020	2020_698
+6	1	AL0011200	2W2HPU7PSCKN	2020-05-04	1	6946	2020-05-04	O	C	13B	17				29	F	B	N	N		2020	2020_676
+6	1	AL0011200	2W2HPU73J70X	2020-02-14	1	6565	2020-02-14	O	C	23C	1				29	M	B	N	N		2020	2020_318
+6	1	AL0011200	2W2HPU7O6GB4	2020-10-13	1	7921	2020-10-13	O	C	23C	1				18	M	W	N	R		2020	2020_555
+
+
+
+```sql
+SELECT *
+FROM `daemo-daemon-testing.nibrs_data.offense_segment`
+LIMIT 10
+```
+segment_level	state_code	ori	incident_number	incident_date	ucr_offense_code	offense_attempted_or_completed	offender_suspected_of_using1	offender_suspected_of_using2	offender_suspected_of_using3	location_type	num_premises_entered	method_of_entry	type_of_criminal_activity1	type_of_criminal_activity2	type_of_criminal_activity3	type_weapon_force_involved1	automatic_weapon_indicator1	type_weapon_force_involved2	automatic_weapon_indicator2	type_weapon_force_involved3	automatic_weapon_indicator3	bias_motivation	data_year	db_id
+2	1	AL0010200	V-6QXTJIBB0W	2023-09-30	09A	C	N			18						11.0						88	2023	2023_52889
+2	1	AL0010200	U302O-JYLGST	2022-12-19	09A	C	N			20						11.0	A					88	2022	2022_52325
+2	1	AL0010200	FCC8P0YQPCUC	2025-12-06	09A	C	N			20			N			11.0	A					88	2025	2025_34644
+2	1	AL0010200	S0882Q-Y5K G	2021-08-05	09A	C	N			20						12.0	A					99	2021	2021_44614
+2	1	AL0010200	T00498I-K7PL	2021-09-10	09A	C	N			20						95.0						88	2021	2021_45130
+2	1	AL0010200	GW1B8NPN3N8J	2023-12-10	09A	C	N			3						12.0	A					88	2023	2023_43788
+2	1	AL0010200	YGEMFGCFCXQJ	2025-07-22	09A	C	N			13						13.0						88	2025	2025_46073
+2	1	AL0020100	6X4D B6ESZ-D	2024-05-17	09A	C	N			25			N			11.0						88	2024	2024_70248
+2	1	AL0030100	I3DHVUK4PP06	2024-07-01	09A	C	N			25						11.0						88	2024	2024_91836
+2	1	AL0270000	8M5E8N6234WL	2023-03-25	09A	C	N			20						12.0						88	2023	2023_149299
+
+
+```sql
+SELECT *
+FROM `daemo-daemon-testing.nibrs_data.victim_segment`
+LIMIT 10
+```
+segment_level	state_code	ori	incident_number	incident_date	victim_sequence_number	ucr_offense_code1	ucr_offense_code2	ucr_offense_code3	ucr_offense_code4	ucr_offense_code5	ucr_offense_code6	ucr_offense_code7	ucr_offense_code8	ucr_offense_code9	ucr_offense_code10	type_of_victim	age_of_victim	sex_of_victim	race_of_victim	ethnicity_of_victim	residence_status_of_victim	agg_assault_homicide_circumstance1	agg_assault_homicide_circumstance2	additional_justifiable_homicide_circumstance	type_of_injury1	type_of_injury2	type_of_injury3	type_of_injury4	type_of_injury5	offender_sequence_number	victim_relationship_to_offender1	victim_relationship_to_offender2	victim_relationship_to_offender3	victim_relationship_to_offender4	victim_relationship_to_offender5	victim_relationship_to_offender6	victim_relationship_to_offender7	victim_relationship_to_offender8	victim_relationship_to_offender9	victim_relationship_to_offender10	data_year	db_id
+4	42	TXHPD0000	37418GZ42SCT	2025-06-28	1	120										B																									2025	2025_10691537
+4	21	MI2583900	P-23NGWP-Z2Z	2023-06-21	2	120										B																									2023	2023_5625241
+4	4	CA0500200	0K2B4IA6RO39	2024-11-09	2	120										B																									2024	2024_1945926
+4	36	OR0260200	2H-WWKR2TD1A	2025-04-11	2	120										B																									2025	2025_8431921
+4	12	ILCPD0000	W4XKBBMF39G	2021-12-09	3	120										B																									2021	2021_2870721
+4	4	CA0030000	CE0QRF3R728N	2024-04-02	2	120										B																									2024	2024_756646
+4	1	AL0010200	3N76T9NFR5RV	2025-07-10	2	120										B																									2025	2025_24826
+4	32	NC0600100	2904QH7OJXJ4	2023-08-19	2	120										B																									2023	2023_7086868
+4	46	WA0173700	UT0BAW5DQ28N	2020-08-24	1	120										B																									2020	2020_8395605
+4	10	GA0570200	CT0QIF3U728N	2022-06-12	3	120										B																									2022	2022_2823948
+
+
+Remember that the blank spaces represent nulls in the tables above. Anyways, update the functions in the agent so that it can answer all of the following questions (or at least as many as possible):
+

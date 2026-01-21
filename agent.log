@@ -1,0 +1,769 @@
+
+> daemo-nibrs-crime-agent@1.0.0 dev
+> npx ts-node src/app.ts
+
+(node:11079) ExperimentalWarning: CommonJS module /home/sgodilla/.nvm/versions/node/v23.3.0/lib/node_modules/npm/node_modules/debug/src/node.js is loading ES Module /home/sgodilla/.nvm/versions/node/v23.3.0/lib/node_modules/npm/node_modules/supports-color/index.js using require().
+Support for loading ES Module in require() is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[dotenv@17.2.3] injecting env (9) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+
+=== Initializing Daemo Service ===
+[BigQuery] Initialized with service account credentials
+[Daemo SDK] ✓ Registered decorated function: searchAgencies
+[Daemo SDK] ✓ Registered decorated function: getIncidentCounts
+[Daemo SDK] ✓ Registered decorated function: getOffenseSummary
+[Daemo SDK] ✓ Registered decorated function: getVictimDemographics
+[Daemo SDK] ✓ Registered decorated function: getArresteeDemographics
+[Daemo SDK] ✓ Registered decorated function: getCrimeTrends
+[Daemo SDK] ✓ Registered decorated function: getWeaponAnalysis
+[Daemo SDK] ✓ Registered decorated function: getBiasAnalysis
+[Daemo SDK] ✓ Registered decorated function: getLocationAnalysis
+[Daemo SDK] ✓ Registered decorated function: getInjuryAnalysis
+[Daemo SDK] ✓ Registered decorated function: getRelationshipAnalysis
+[Daemo SDK] ✓ Registered decorated function: getClearanceAnalysis
+[Daemo SDK] ✓ Registered decorated function: getTimePatterns
+[Daemo SDK] ✓ Registered decorated function: getVictimsByOffense
+[Daemo SDK] ✓ Registered decorated function: getArresteesByOffense
+[Daemo SDK] ✓ Registered decorated function: getOffenseDemographicCross
+[Daemo SDK] ✓ Registered decorated function: getAttemptedCompletedAnalysis
+[Daemo SDK] ✓ Registered decorated function: getIncidentLevelStats
+[Daemo SDK] ✓ Registered decorated function: executeCustomQuery
+Registered 19 NIBRS functions with Daemo
+[Daemo] Starting hosted connection to http://localhost:50052...
+[Daemo] Starting hosted connection to http://localhost:50052
+[Daemo SDK] Connecting to Daemo Gateway at http://localhost:50052...
+[Daemo SDK] Authenticating...
+(node:11093) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[Daemo] Hosted connection started successfully
+The server is running at http://localhost:5000
+[Daemo SDK] Authentication successful. Agent ID: 6961382c26b74f3f84dea1b7
+[Daemo SDK] Registering session...
+[Daemo SDK] Registered session...
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Sent heartbeat to gateway.
+[Agent Controller] No LLM_PROVIDER set. Using Engine defaults.
+[Agent Controller] Initializing DaemoClient with URL: http://localhost:50052
+[Daemo SDK] Received function request ID: 240be567-326c-4c8e-9f25-6e003d2d2b10 for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"groupBy":"offense","limit":5}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as offense_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-daemon-testing.nibrs_data.offense_se...
+[Daemo SDK] Responding to function request ID: 240be567-326c-4c8e-9f25-6e003d2d2b10, Success: true
+[Daemo SDK] Received function request ID: 3bfef739-e1b3-4080-9e11-e55e8ef46a96 for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"groupBy":"offense","limit":100}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as offense_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-daemon-testing.nibrs_data.offense_se...
+[Daemo SDK] Responding to function request ID: 3bfef739-e1b3-4080-9e11-e55e8ef46a96, Success: true
+[Daemo SDK] Received function request ID: 2c0d9c35-7384-46ec-8ed5-5134940a6278 for function: getVictimsByOffense
+[Daemo SDK] Executing 'getVictimsByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"offenseCode":"13B","limit":1}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        v.ucr_offense_code1 as offense_code,
+        COUNT(*) as victim_count
+      FROM `daemo-daemon-testing.nibrs_data.victim_segment` v
+      JOIN `daemo-daemon-testing.nibrs_data.ag...
+[Daemo SDK] Responding to function request ID: 2c0d9c35-7384-46ec-8ed5-5134940a6278, Success: true
+[Daemo SDK] Received function request ID: 5628d6e5-b384-4704-a76e-3e6e596a9a40 for function: getArresteesByOffense
+[Daemo SDK] Executing 'getArresteesByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"offenseCode":"13B","limit":1}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        ar.ucr_arrest_offense_code as offense_code,
+        COUNT(*) as arrestee_count
+      FROM `daemo-daemon-testing.nibrs_data.arrestee_segment` ar
+      JOIN `daemo-daemon-testing.n...
+[Daemo SDK] Responding to function request ID: 5628d6e5-b384-4704-a76e-3e6e596a9a40, Success: true
+[Daemo SDK] Received function request ID: 65cd06bc-395c-467a-b6c7-388b3ea82dcd for function: getVictimsByOffense
+[Daemo SDK] Executing 'getVictimsByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"offenseCode":"13A","limit":1}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        v.ucr_offense_code1 as offense_code,
+        COUNT(*) as victim_count
+      FROM `daemo-daemon-testing.nibrs_data.victim_segment` v
+      JOIN `daemo-daemon-testing.nibrs_data.ag...
+[Daemo SDK] Responding to function request ID: 65cd06bc-395c-467a-b6c7-388b3ea82dcd, Success: true
+[Daemo SDK] Received function request ID: 3a82cc36-0728-43da-a953-71101efb1796 for function: getArresteesByOffense
+[Daemo SDK] Executing 'getArresteesByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"offenseCode":"13A","limit":1}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        ar.ucr_arrest_offense_code as offense_code,
+        COUNT(*) as arrestee_count
+      FROM `daemo-daemon-testing.nibrs_data.arrestee_segment` ar
+      JOIN `daemo-daemon-testing.n...
+[Daemo SDK] Responding to function request ID: 3a82cc36-0728-43da-a953-71101efb1796, Success: true
+[Daemo SDK] Received function request ID: 98d4c427-d745-4ec5-9b59-7f51dbf3337b for function: getVictimsByOffense
+[Daemo SDK] Executing 'getVictimsByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"offenseCode":"120","limit":1}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        v.ucr_offense_code1 as offense_code,
+        COUNT(*) as victim_count
+      FROM `daemo-daemon-testing.nibrs_data.victim_segment` v
+      JOIN `daemo-daemon-testing.nibrs_data.ag...
+[Daemo SDK] Responding to function request ID: 98d4c427-d745-4ec5-9b59-7f51dbf3337b, Success: true
+[Daemo SDK] Received function request ID: 89835cd3-68f1-4544-9074-0cfecd5f9243 for function: getArresteesByOffense
+[Daemo SDK] Executing 'getArresteesByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"offenseCode":"120","limit":1}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        ar.ucr_arrest_offense_code as offense_code,
+        COUNT(*) as arrestee_count
+      FROM `daemo-daemon-testing.nibrs_data.arrestee_segment` ar
+      JOIN `daemo-daemon-testing.n...
+[Daemo SDK] Responding to function request ID: 89835cd3-68f1-4544-9074-0cfecd5f9243, Success: true
+[Daemo SDK] Received function request ID: fa95daf1-1e9b-483f-893a-9f05c0be43e0 for function: getVictimsByOffense
+[Daemo SDK] Executing 'getVictimsByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"offenseCode":"11A","limit":1}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        v.ucr_offense_code1 as offense_code,
+        COUNT(*) as victim_count
+      FROM `daemo-daemon-testing.nibrs_data.victim_segment` v
+      JOIN `daemo-daemon-testing.nibrs_data.ag...
+[Daemo SDK] Responding to function request ID: fa95daf1-1e9b-483f-893a-9f05c0be43e0, Success: true
+[Daemo SDK] Received function request ID: 60cd973d-4de3-44e3-be90-32f880d38bdc for function: getArresteesByOffense
+[Daemo SDK] Executing 'getArresteesByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"offenseCode":"11A","limit":1}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        ar.ucr_arrest_offense_code as offense_code,
+        COUNT(*) as arrestee_count
+      FROM `daemo-daemon-testing.nibrs_data.arrestee_segment` ar
+      JOIN `daemo-daemon-testing.n...
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Responding to function request ID: 60cd973d-4de3-44e3-be90-32f880d38bdc, Success: true
+[Daemo SDK] Received function request ID: c59d8199-a624-41d0-8b02-8dbd6f063669 for function: getVictimsByOffense
+[Daemo SDK] Executing 'getVictimsByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"offenseCode":"36B","limit":1}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        v.ucr_offense_code1 as offense_code,
+        COUNT(*) as victim_count
+      FROM `daemo-daemon-testing.nibrs_data.victim_segment` v
+      JOIN `daemo-daemon-testing.nibrs_data.ag...
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Responding to function request ID: c59d8199-a624-41d0-8b02-8dbd6f063669, Success: true
+[Daemo SDK] Received function request ID: 8ffd64c4-10ef-4008-aacd-9d4304286ad5 for function: getArresteesByOffense
+[Daemo SDK] Executing 'getArresteesByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"offenseCode":"36B","limit":1}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        ar.ucr_arrest_offense_code as offense_code,
+        COUNT(*) as arrestee_count
+      FROM `daemo-daemon-testing.nibrs_data.arrestee_segment` ar
+      JOIN `daemo-daemon-testing.n...
+[Daemo SDK] Responding to function request ID: 8ffd64c4-10ef-4008-aacd-9d4304286ad5, Success: true
+[0mPOST /agent/query [32m200[0m 23112.397 ms - 16417[0m
+[Agent Controller] No LLM_PROVIDER set. Using Engine defaults.
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received function request ID: acd3f9ea-8e4b-4c65-bbf2-121a8713cb76 for function: getVictimsByOffense
+[Daemo SDK] Executing 'getVictimsByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"limit":1000}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        v.ucr_offense_code1 as offense_code,
+        COUNT(*) as victim_count
+      FROM `daemo-daemon-testing.nibrs_data.victim_segment` v
+      JOIN `daemo-daemon-testing.nibrs_data.ag...
+[Daemo SDK] Responding to function request ID: acd3f9ea-8e4b-4c65-bbf2-121a8713cb76, Success: true
+[Daemo SDK] Received function request ID: 72ed70b7-1768-4892-b994-3a8f19255778 for function: getArresteesByOffense
+[Daemo SDK] Executing 'getArresteesByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"limit":1000}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        ar.ucr_arrest_offense_code as offense_code,
+        COUNT(*) as arrestee_count
+      FROM `daemo-daemon-testing.nibrs_data.arrestee_segment` ar
+      JOIN `daemo-daemon-testing.n...
+[Daemo SDK] Responding to function request ID: 72ed70b7-1768-4892-b994-3a8f19255778, Success: true
+[0mPOST /agent/query [32m200[0m 18813.527 ms - 22301[0m
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Agent Controller] No LLM_PROVIDER set. Using Engine defaults.
+[Daemo SDK] Received function request ID: feac0db2-3b7b-4a32-bade-c6fffac0c564 for function: getVictimsByOffense
+[Daemo SDK] Executing 'getVictimsByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"limit":1000}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        v.ucr_offense_code1 as offense_code,
+        COUNT(*) as victim_count
+      FROM `daemo-daemon-testing.nibrs_data.victim_segment` v
+      JOIN `daemo-daemon-testing.nibrs_data.ag...
+[Daemo SDK] Responding to function request ID: feac0db2-3b7b-4a32-bade-c6fffac0c564, Success: true
+[Daemo SDK] Received function request ID: 1eea9ee0-2a24-4e98-8873-2736cb9a7da8 for function: getArresteesByOffense
+[Daemo SDK] Executing 'getArresteesByOffense' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"limit":1000}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT
+        ar.ucr_arrest_offense_code as offense_code,
+        COUNT(*) as arrestee_count
+      FROM `daemo-daemon-testing.nibrs_data.arrestee_segment` ar
+      JOIN `daemo-daemon-testing.n...
+[Daemo SDK] Responding to function request ID: 1eea9ee0-2a24-4e98-8873-2736cb9a7da8, Success: true
+[0mPOST /agent/query-stream [32m200[0m 0.472 ms - -[0m
+Client closed connection. Cancelling gRPC stream.
+[Daemo SDK] Sent heartbeat to gateway.
+[Agent Controller] No LLM_PROVIDER set. Using Engine defaults.
+[Daemo SDK] Received function request ID: 59bdecd5-5a04-4a86-95d6-a5bd9c04c740 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"FL","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 905e0879-3056-4456-b5de-79078921d0d5 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"DE","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: e5cec607-2dc3-4481-bb69-84808ec69b51 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"AL","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 077e9230-43fc-44e9-add6-6c1bc109f8b6 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"CA","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 582ee250-b615-4b4b-84ce-03d6a35fdb2e for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"AK","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: c15bf407-d79d-48ff-b86b-bf3a406869a5 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"NJ","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 05c798a2-97d0-477e-b93a-df5a2756a1cf for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"AZ","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 51c5f20b-8627-4587-82f9-ff86f6f14016 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"ID","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 0c033da7-42f4-4595-8a20-d99c1a48c13d for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"NY","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: ddcec54d-766a-46dc-9d58-89b7c8a9202a for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"MN","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 44fd1129-b9c7-4fc3-9d9e-41fb58cd359b for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"CT","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: c84a8dd1-992b-4579-9ce8-3e468c41a2b9 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"MA","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 8c6fc72a-5506-4188-9f91-dfbb6f65fa91 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"HI","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 8a6905f1-257d-42dd-83fc-99b102fcf537 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"NC","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: e7189a52-5ace-4b71-bf0f-a8a9517492c9 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"ME","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 272c84d8-9aca-4a36-89e8-9a9b69e9a029 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"GA","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: fa59df06-958a-4c2c-8ff3-2465e89e6370 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"CO","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 7f716b2d-8554-4b71-829a-70d61dcd6531 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"IN","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: cc628732-008b-4d51-8a0e-546a47c84768 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"LA","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 4675c8d6-63c7-448c-9998-cf01a5238ac3 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"NM","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 84404aac-b705-4378-9437-30102a2f83fb for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"MS","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: f6d94180-3d42-47c8-bea9-ca6b93820bfa for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"MI","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: d1863df8-ed82-4552-8433-30e50fa8f86c for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"MD","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Received function request ID: 98781b47-9f55-4c7d-a694-78cb4ca48273 for function: searchAgencies
+[Daemo SDK] Executing 'searchAgencies' with input: {"stateAbbr":"KY","limit":50000}
+[BigQuery] Executing: 
+      SELECT
+        ori,
+        agency_name,
+        agency_type_name,
+        state_abbr,
+        state_name,
+        counties,
+        latitude,
+        longitude,
+        is_nibrs,
+        CAST(...
+[Daemo SDK] Responding to function request ID: 59bdecd5-5a04-4a86-95d6-a5bd9c04c740, Success: true
+[Daemo SDK] Responding to function request ID: e5cec607-2dc3-4481-bb69-84808ec69b51, Success: true
+[Daemo SDK] Responding to function request ID: cc628732-008b-4d51-8a0e-546a47c84768, Success: true
+[Daemo SDK] Responding to function request ID: 0c033da7-42f4-4595-8a20-d99c1a48c13d, Success: true
+[Daemo SDK] Responding to function request ID: 8a6905f1-257d-42dd-83fc-99b102fcf537, Success: true
+[Daemo SDK] Responding to function request ID: 44fd1129-b9c7-4fc3-9d9e-41fb58cd359b, Success: true
+[Daemo SDK] Responding to function request ID: e7189a52-5ace-4b71-bf0f-a8a9517492c9, Success: true
+[Daemo SDK] Responding to function request ID: ddcec54d-766a-46dc-9d58-89b7c8a9202a, Success: true
+[Daemo SDK] Responding to function request ID: 4675c8d6-63c7-448c-9998-cf01a5238ac3, Success: true
+[Daemo SDK] Responding to function request ID: 84404aac-b705-4378-9437-30102a2f83fb, Success: true
+[Daemo SDK] Responding to function request ID: 905e0879-3056-4456-b5de-79078921d0d5, Success: true
+[Daemo SDK] Responding to function request ID: fa59df06-958a-4c2c-8ff3-2465e89e6370, Success: true
+[Daemo SDK] Responding to function request ID: c84a8dd1-992b-4579-9ce8-3e468c41a2b9, Success: true
+[Daemo SDK] Responding to function request ID: 582ee250-b615-4b4b-84ce-03d6a35fdb2e, Success: true
+[Daemo SDK] Responding to function request ID: 7f716b2d-8554-4b71-829a-70d61dcd6531, Success: true
+[Daemo SDK] Responding to function request ID: 51c5f20b-8627-4587-82f9-ff86f6f14016, Success: true
+[Daemo SDK] Responding to function request ID: 077e9230-43fc-44e9-add6-6c1bc109f8b6, Success: true
+[Daemo SDK] Responding to function request ID: 272c84d8-9aca-4a36-89e8-9a9b69e9a029, Success: true
+[Daemo SDK] Responding to function request ID: f6d94180-3d42-47c8-bea9-ca6b93820bfa, Success: true
+[Daemo SDK] Responding to function request ID: 98781b47-9f55-4c7d-a694-78cb4ca48273, Success: true
+[Daemo SDK] Responding to function request ID: 8c6fc72a-5506-4188-9f91-dfbb6f65fa91, Success: true
+[Daemo SDK] Responding to function request ID: d1863df8-ed82-4552-8433-30e50fa8f86c, Success: true
+[Daemo SDK] Responding to function request ID: c15bf407-d79d-48ff-b86b-bf3a406869a5, Success: true
+[Daemo SDK] Responding to function request ID: 05c798a2-97d0-477e-b93a-df5a2756a1cf, Success: true
+[Daemo SDK] Received function request ID: 0906dabf-a059-40e4-8ddd-083ddad36dce for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"fromYear":2025,"toYear":2025,"groupBy":"agency","limit":50000}
+[BigQuery] Executing: 
+      SELECT a.ori, ag.agency_name, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-dae...
+[Daemo SDK] Responding to function request ID: 0906dabf-a059-40e4-8ddd-083ddad36dce, Success: true
+[Daemo SDK] Received function request ID: 56809320-00e9-49ef-bed4-1ddcdd0ef285 for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"fromYear":2025,"toYear":2025,"offenseCode":"09A","groupBy":"agency","limit":50000}
+[BigQuery] Executing: 
+      SELECT a.ori, ag.agency_name, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-dae...
+[Daemo SDK] Received function request ID: 5470b9f3-dbfe-4558-8767-a3d8230dba22 for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"fromYear":2025,"toYear":2025,"offenseCode":"11A","groupBy":"agency","limit":50000}
+[BigQuery] Executing: 
+      SELECT a.ori, ag.agency_name, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-dae...
+[Daemo SDK] Received function request ID: 5a1c18e6-7e3a-499a-b83e-693164f9db03 for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"fromYear":2025,"toYear":2025,"offenseCode":"13A","groupBy":"agency","limit":50000}
+[BigQuery] Executing: 
+      SELECT a.ori, ag.agency_name, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-dae...
+[Daemo SDK] Received function request ID: 8c59fe4c-4739-4f54-a1a7-6b3dd4ea1dda for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"fromYear":2025,"toYear":2025,"offenseCode":"13B","groupBy":"agency","limit":50000}
+[BigQuery] Executing: 
+      SELECT a.ori, ag.agency_name, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-dae...
+[Daemo SDK] Received function request ID: e7944a1b-9f65-4c83-9257-f4ac11a359b4 for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"fromYear":2025,"toYear":2025,"offenseCode":"09B","groupBy":"agency","limit":50000}
+[BigQuery] Executing: 
+      SELECT a.ori, ag.agency_name, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-dae...
+[Daemo SDK] Received function request ID: b94e2b4c-afb2-4593-9c0d-d8c7a126e807 for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"fromYear":2025,"toYear":2025,"offenseCode":"13C","groupBy":"agency","limit":50000}
+[BigQuery] Executing: 
+      SELECT a.ori, ag.agency_name, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-dae...
+[Daemo SDK] Received function request ID: 7b4df455-ac98-49b8-8553-f552fe9ef0e7 for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"fromYear":2025,"toYear":2025,"offenseCode":"120","groupBy":"agency","limit":50000}
+[BigQuery] Executing: 
+      SELECT a.ori, ag.agency_name, COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-dae...
+[Daemo SDK] Responding to function request ID: 56809320-00e9-49ef-bed4-1ddcdd0ef285, Success: true
+[Daemo SDK] Responding to function request ID: e7944a1b-9f65-4c83-9257-f4ac11a359b4, Success: true
+[Daemo SDK] Responding to function request ID: 7b4df455-ac98-49b8-8553-f552fe9ef0e7, Success: true
+[Daemo SDK] Responding to function request ID: 5470b9f3-dbfe-4558-8767-a3d8230dba22, Success: true
+[Daemo SDK] Responding to function request ID: 5a1c18e6-7e3a-499a-b83e-693164f9db03, Success: true
+[Daemo SDK] Responding to function request ID: b94e2b4c-afb2-4593-9c0d-d8c7a126e807, Success: true
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Responding to function request ID: 8c59fe4c-4739-4f54-a1a7-6b3dd4ea1dda, Success: true
+[0mPOST /agent/query-stream [32m200[0m 0.349 ms - -[0m
+Client closed connection. Cancelling gRPC stream.
+[Daemo SDK] Sent heartbeat to gateway.
+[Agent Controller] No LLM_PROVIDER set. Using Engine defaults.
+[Daemo SDK] Received function request ID: e74e0848-c456-4dfc-8dab-fbe724a3dd7e for function: getOffenseSummary
+[Daemo SDK] Executing 'getOffenseSummary' with input: {"stateAbbr":{"year":2021,"groupBy":"offense"}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as count
+      FROM `daemo-daemon-testing.nibrs_data.offense_segment` o
+      JOIN `daemo-daemon-testing.nibrs_data.agencies` ag ON o.ori = a...
+[Daemo SDK] Received function request ID: 32f12b23-fc46-4e04-aa7b-fa0dc00f1e77 for function: getOffenseSummary
+[Daemo SDK] Executing 'getOffenseSummary' with input: {"stateAbbr":{"year":2020,"groupBy":"offense"}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as count
+      FROM `daemo-daemon-testing.nibrs_data.offense_segment` o
+      JOIN `daemo-daemon-testing.nibrs_data.agencies` ag ON o.ori = a...
+[Daemo SDK] Received function request ID: 17eb1deb-541e-4de6-9f85-04109acadcc3 for function: getOffenseSummary
+[Daemo SDK] Executing 'getOffenseSummary' with input: {"stateAbbr":{"year":2025,"groupBy":"offense"}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as count
+      FROM `daemo-daemon-testing.nibrs_data.offense_segment` o
+      JOIN `daemo-daemon-testing.nibrs_data.agencies` ag ON o.ori = a...
+[Daemo SDK] Received function request ID: e74cf24c-c145-4493-bd73-26406cf8c1ee for function: getOffenseSummary
+[Daemo SDK] Executing 'getOffenseSummary' with input: {"stateAbbr":{"year":2024,"groupBy":"offense"}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as count
+      FROM `daemo-daemon-testing.nibrs_data.offense_segment` o
+      JOIN `daemo-daemon-testing.nibrs_data.agencies` ag ON o.ori = a...
+[Daemo SDK] Received function request ID: 230ed2e5-3674-46df-80f7-82b78cf45f8d for function: getOffenseSummary
+[Daemo SDK] Executing 'getOffenseSummary' with input: {"stateAbbr":{"year":2022,"groupBy":"offense"}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as count
+      FROM `daemo-daemon-testing.nibrs_data.offense_segment` o
+      JOIN `daemo-daemon-testing.nibrs_data.agencies` ag ON o.ori = a...
+[Daemo SDK] Received function request ID: 211fe62d-65ea-4e2e-b5c9-98959e079fba for function: getOffenseSummary
+[Daemo SDK] Executing 'getOffenseSummary' with input: {"stateAbbr":{"year":2023,"groupBy":"offense"}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as count
+      FROM `daemo-daemon-testing.nibrs_data.offense_segment` o
+      JOIN `daemo-daemon-testing.nibrs_data.agencies` ag ON o.ori = a...
+[Daemo SDK] Responding to function request ID: 17eb1deb-541e-4de6-9f85-04109acadcc3, Success: true
+[Daemo SDK] Responding to function request ID: 211fe62d-65ea-4e2e-b5c9-98959e079fba, Success: true
+[Daemo SDK] Responding to function request ID: 32f12b23-fc46-4e04-aa7b-fa0dc00f1e77, Success: true
+[Daemo SDK] Responding to function request ID: e74cf24c-c145-4493-bd73-26406cf8c1ee, Success: true
+[Daemo SDK] Responding to function request ID: e74e0848-c456-4dfc-8dab-fbe724a3dd7e, Success: true
+[Daemo SDK] Responding to function request ID: 230ed2e5-3674-46df-80f7-82b78cf45f8d, Success: true
+[Daemo SDK] Received function request ID: ab023d72-b754-4522-9c74-2053ebc9273a for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"stateAbbr":{"fromYear":2025,"toYear":2025,"groupBy":"offense","limit":10000}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as offense_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-daemon-testing.nibrs_data.offense_se...
+[Daemo SDK] Received function request ID: 3264fc89-f48f-40f1-8f85-6a52dfd6d1c9 for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"stateAbbr":{"fromYear":2021,"toYear":2021,"groupBy":"offense","limit":10000}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as offense_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-daemon-testing.nibrs_data.offense_se...
+[Daemo SDK] Received function request ID: 77e96073-6dac-4c2a-a692-2ad408dd1a2e for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"stateAbbr":{"fromYear":2024,"toYear":2024,"groupBy":"offense","limit":10000}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as offense_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-daemon-testing.nibrs_data.offense_se...
+[Daemo SDK] Received function request ID: 23a527f0-2115-46dc-bedd-e16d0f42ed58 for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"stateAbbr":{"fromYear":2022,"toYear":2022,"groupBy":"offense","limit":10000}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as offense_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-daemon-testing.nibrs_data.offense_se...
+[Daemo SDK] Received function request ID: afba8aab-1ad5-49f8-94bb-0a9e30bcc00c for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"stateAbbr":{"fromYear":2020,"toYear":2020,"groupBy":"offense","limit":10000}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as offense_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-daemon-testing.nibrs_data.offense_se...
+[Daemo SDK] Received function request ID: 769933db-f7c0-4db6-9082-80a8621786b1 for function: getIncidentCounts
+[Daemo SDK] Executing 'getIncidentCounts' with input: {"stateAbbr":{"fromYear":2023,"toYear":2023,"groupBy":"offense","limit":10000}}
+[Daemo SDK] unwrapped nested input for 'stateAbbr'
+[BigQuery] Executing: 
+      SELECT o.ucr_offense_code as offense_code, COUNT(*) as offense_count
+      FROM `daemo-daemon-testing.nibrs_data.administrative_segment` a
+      JOIN `daemo-daemon-testing.nibrs_data.offense_se...
+[Daemo SDK] Responding to function request ID: ab023d72-b754-4522-9c74-2053ebc9273a, Success: true
+[Daemo SDK] Responding to function request ID: 769933db-f7c0-4db6-9082-80a8621786b1, Success: true
+[Daemo SDK] Responding to function request ID: 77e96073-6dac-4c2a-a692-2ad408dd1a2e, Success: true
+[Daemo SDK] Responding to function request ID: 23a527f0-2115-46dc-bedd-e16d0f42ed58, Success: true
+[Daemo SDK] Responding to function request ID: 3264fc89-f48f-40f1-8f85-6a52dfd6d1c9, Success: true
+[Daemo SDK] Responding to function request ID: afba8aab-1ad5-49f8-94bb-0a9e30bcc00c, Success: true
+[0mPOST /agent/query-stream [32m200[0m 0.389 ms - -[0m
+Client closed connection. Cancelling gRPC stream.
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Sent heartbeat to gateway.
+[Daemo SDK] Received heartbeat from gateway. Replying...
+[Daemo SDK] Sent heartbeat to gateway.

@@ -20,6 +20,11 @@ import {
   GetClearanceAnalysisInput,
   GetTimePatternInput,
   ExecuteCustomQueryInput,
+  GetVictimsByOffenseInput,
+  GetArresteesByOffenseInput,
+  GetOffenseDemographicCrossInput,
+  GetAttemptedCompletedInput,
+  GetIncidentLevelStatsInput,
   AgencyListOutput,
   CountResultOutput,
   TrendOutput,
@@ -1728,6 +1733,562 @@ export class NIBRSCrimeFunctions {
       results: rows,
       total_rows: rows.length,
       query_info: `Grouped by: ${input.groupBy}`,
+    };
+  }
+
+  // =========================================================================
+  // VICTIMS BY OFFENSE TYPE
+  // =========================================================================
+
+  @DaemoFunction({
+    description:
+      "Get victim counts grouped by offense type. This is the PRIMARY function for calculating victim-to-arrest ratios and analyzing which crimes have the most victims. Returns counts per offense code with optional demographic filtering. Use this instead of getVictimDemographics when you need to GROUP BY OFFENSE TYPE.",
+    tags: ["nibrs", "victim", "offense", "counts", "victim-arrest-ratio"],
+    category: "NIBRS",
+    inputSchema: GetVictimsByOffenseInput,
+    outputSchema: CountResultOutput,
+  })
+  async getVictimsByOffense(input: z.infer<typeof GetVictimsByOffenseInput>) {
+    const conditions: string[] = [];
+
+    // State filtering
+    if (input.stateAbbr) {
+      conditions.push(`ag.state_abbr = '${input.stateAbbr}'`);
+    }
+    if (input.ori) {
+      conditions.push(`v.ori = '${input.ori}'`);
+    }
+    if (input.fromYear) {
+      conditions.push(`v.data_year >= ${input.fromYear}`);
+    }
+    if (input.toYear) {
+      conditions.push(`v.data_year <= ${input.toYear}`);
+    }
+    if (input.offenseCode) {
+      conditions.push(`v.ucr_offense_code1 = '${input.offenseCode}'`);
+    }
+    if (input.sex) {
+      conditions.push(`v.sex_of_victim = '${input.sex}'`);
+    }
+    if (input.race) {
+      conditions.push(`v.race_of_victim = '${input.race}'`);
+    }
+    if (input.victimType) {
+      conditions.push(`v.type_of_victim = '${input.victimType}'`);
+    }
+
+    const whereClause = this.buildWhereClause(conditions);
+    const limit = Math.min(input.limit || 100, 10000);
+
+    const sql = `
+      SELECT
+        v.ucr_offense_code1 as offense_code,
+        COUNT(*) as victim_count
+      FROM \`${PROJECT_ID}.${DATASET}.victim_segment\` v
+      JOIN \`${PROJECT_ID}.${DATASET}.agencies\` ag ON v.ori = ag.ori
+      ${whereClause}
+      GROUP BY v.ucr_offense_code1
+      ORDER BY victim_count DESC
+      LIMIT ${limit}
+    `;
+
+    const rows = await this.runQuery(sql);
+
+    // Add offense descriptions
+    rows.forEach((row: any) => {
+      if (row.offense_code) {
+        row.offense_description =
+          UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
+      }
+    });
+
+    return {
+      results: rows,
+      total_rows: rows.length,
+      query_info: "Victims grouped by offense type",
+    };
+  }
+
+  // =========================================================================
+  // ARRESTEES BY OFFENSE TYPE
+  // =========================================================================
+
+  @DaemoFunction({
+    description:
+      "Get arrestee counts grouped by offense type. This is the PRIMARY function for calculating arrest rates and victim-to-arrest ratios. Returns counts per offense code with optional demographic filtering. Use this instead of getArresteeDemographics when you need to GROUP BY OFFENSE TYPE.",
+    tags: ["nibrs", "arrestee", "offense", "counts", "arrest-rate"],
+    category: "NIBRS",
+    inputSchema: GetArresteesByOffenseInput,
+    outputSchema: CountResultOutput,
+  })
+  async getArresteesByOffense(
+    input: z.infer<typeof GetArresteesByOffenseInput>,
+  ) {
+    const conditions: string[] = [];
+
+    // State filtering
+    if (input.stateAbbr) {
+      conditions.push(`ag.state_abbr = '${input.stateAbbr}'`);
+    }
+    if (input.ori) {
+      conditions.push(`ar.ori = '${input.ori}'`);
+    }
+    if (input.fromYear) {
+      conditions.push(`ar.data_year >= ${input.fromYear}`);
+    }
+    if (input.toYear) {
+      conditions.push(`ar.data_year <= ${input.toYear}`);
+    }
+    if (input.offenseCode) {
+      conditions.push(`ar.ucr_arrest_offense_code = '${input.offenseCode}'`);
+    }
+    if (input.sex) {
+      conditions.push(`ar.sex_of_arrestee = '${input.sex}'`);
+    }
+    if (input.race) {
+      conditions.push(`ar.race_of_arrestee = '${input.race}'`);
+    }
+
+    const whereClause = this.buildWhereClause(conditions);
+    const limit = Math.min(input.limit || 100, 10000);
+
+    const sql = `
+      SELECT
+        ar.ucr_arrest_offense_code as offense_code,
+        COUNT(*) as arrestee_count
+      FROM \`${PROJECT_ID}.${DATASET}.arrestee_segment\` ar
+      JOIN \`${PROJECT_ID}.${DATASET}.agencies\` ag ON ar.ori = ag.ori
+      ${whereClause}
+      GROUP BY ar.ucr_arrest_offense_code
+      ORDER BY arrestee_count DESC
+      LIMIT ${limit}
+    `;
+
+    const rows = await this.runQuery(sql);
+
+    // Add offense descriptions
+    rows.forEach((row: any) => {
+      if (row.offense_code) {
+        row.offense_description =
+          UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
+      }
+    });
+
+    return {
+      results: rows,
+      total_rows: rows.length,
+      query_info: "Arrestees grouped by offense type",
+    };
+  }
+
+  // =========================================================================
+  // OFFENSE + DEMOGRAPHIC CROSS-TABULATION
+  // =========================================================================
+
+  @DaemoFunction({
+    description:
+      "Cross-tabulate offense types with demographics (sex, race, ethnicity, or age). Use this to answer questions like 'What is the racial breakdown of arrestees for each offense type?' or 'How does victim sex vary by crime type?' This is the PRIMARY function for demographic breakdowns BY OFFENSE.",
+    tags: [
+      "nibrs",
+      "offense",
+      "demographics",
+      "cross-tabulation",
+      "victim",
+      "arrestee",
+    ],
+    category: "NIBRS",
+    inputSchema: GetOffenseDemographicCrossInput,
+    outputSchema: CountResultOutput,
+  })
+  async getOffenseDemographicCross(
+    input: z.infer<typeof GetOffenseDemographicCrossInput>,
+  ) {
+    const conditions: string[] = [];
+
+    // State filtering
+    if (input.stateAbbr) {
+      conditions.push(`ag.state_abbr = '${input.stateAbbr}'`);
+    }
+    if (input.ori) {
+      conditions.push(`seg.ori = '${input.ori}'`);
+    }
+    if (input.fromYear) {
+      conditions.push(`seg.data_year >= ${input.fromYear}`);
+    }
+    if (input.toYear) {
+      conditions.push(`seg.data_year <= ${input.toYear}`);
+    }
+    if (input.offenseCode) {
+      conditions.push(`offense_code = '${input.offenseCode}'`);
+    }
+
+    const whereClause = this.buildWhereClause(conditions);
+    const limit = Math.min(input.limit || 100, 10000);
+
+    let selectClause: string;
+    let groupByClause: string;
+    let table: string;
+    let offenseField: string;
+
+    if (input.segmentType === "victim") {
+      table = "victim_segment";
+      offenseField = "ucr_offense_code1";
+
+      switch (input.demographicDimension) {
+        case "sex":
+          selectClause = `
+            seg.${offenseField} as offense_code,
+            seg.sex_of_victim as sex,
+            CASE seg.sex_of_victim
+              WHEN 'M' THEN 'Male'
+              WHEN 'F' THEN 'Female'
+              WHEN 'X' THEN 'Nonbinary'
+              ELSE 'Unknown'
+            END as sex_description,
+            COUNT(*) as count
+          `;
+          groupByClause = `GROUP BY seg.${offenseField}, seg.sex_of_victim`;
+          break;
+        case "race":
+          selectClause = `
+            seg.${offenseField} as offense_code,
+            seg.race_of_victim as race,
+            CASE seg.race_of_victim
+              WHEN 'A' THEN 'Asian'
+              WHEN 'B' THEN 'Black'
+              WHEN 'I' THEN 'American Indian/Alaska Native'
+              WHEN 'P' THEN 'Native Hawaiian/Pacific Islander'
+              WHEN 'W' THEN 'White'
+              ELSE 'Unknown'
+            END as race_description,
+            COUNT(*) as count
+          `;
+          groupByClause = `GROUP BY seg.${offenseField}, seg.race_of_victim`;
+          break;
+        case "ethnicity":
+          selectClause = `
+            seg.${offenseField} as offense_code,
+            seg.ethnicity_of_victim as ethnicity,
+            CASE seg.ethnicity_of_victim
+              WHEN 'H' THEN 'Hispanic or Latino'
+              WHEN 'N' THEN 'Not Hispanic or Latino'
+              ELSE 'Unknown'
+            END as ethnicity_description,
+            COUNT(*) as count
+          `;
+          groupByClause = `GROUP BY seg.${offenseField}, seg.ethnicity_of_victim`;
+          break;
+        case "age_group":
+          selectClause = `
+            seg.${offenseField} as offense_code,
+            CASE
+              WHEN SAFE_CAST(seg.age_of_victim AS INT64) < 18 THEN 'Under 18'
+              WHEN SAFE_CAST(seg.age_of_victim AS INT64) BETWEEN 18 AND 24 THEN '18-24'
+              WHEN SAFE_CAST(seg.age_of_victim AS INT64) BETWEEN 25 AND 34 THEN '25-34'
+              WHEN SAFE_CAST(seg.age_of_victim AS INT64) BETWEEN 35 AND 44 THEN '35-44'
+              WHEN SAFE_CAST(seg.age_of_victim AS INT64) BETWEEN 45 AND 54 THEN '45-54'
+              WHEN SAFE_CAST(seg.age_of_victim AS INT64) BETWEEN 55 AND 64 THEN '55-64'
+              WHEN SAFE_CAST(seg.age_of_victim AS INT64) >= 65 THEN '65+'
+              ELSE 'Unknown'
+            END as age_group,
+            COUNT(*) as count
+          `;
+          groupByClause = `GROUP BY seg.${offenseField}, age_group`;
+          break;
+      }
+    } else {
+      // arrestee
+      table = "arrestee_segment";
+      offenseField = "ucr_arrest_offense_code";
+
+      switch (input.demographicDimension) {
+        case "sex":
+          selectClause = `
+            seg.${offenseField} as offense_code,
+            seg.sex_of_arrestee as sex,
+            CASE seg.sex_of_arrestee
+              WHEN 'M' THEN 'Male'
+              WHEN 'F' THEN 'Female'
+              WHEN 'X' THEN 'Nonbinary'
+              ELSE 'Unknown'
+            END as sex_description,
+            COUNT(*) as count
+          `;
+          groupByClause = `GROUP BY seg.${offenseField}, seg.sex_of_arrestee`;
+          break;
+        case "race":
+          selectClause = `
+            seg.${offenseField} as offense_code,
+            seg.race_of_arrestee as race,
+            CASE seg.race_of_arrestee
+              WHEN 'A' THEN 'Asian'
+              WHEN 'B' THEN 'Black'
+              WHEN 'I' THEN 'American Indian/Alaska Native'
+              WHEN 'P' THEN 'Native Hawaiian/Pacific Islander'
+              WHEN 'W' THEN 'White'
+              ELSE 'Unknown'
+            END as race_description,
+            COUNT(*) as count
+          `;
+          groupByClause = `GROUP BY seg.${offenseField}, seg.race_of_arrestee`;
+          break;
+        case "ethnicity":
+          selectClause = `
+            seg.${offenseField} as offense_code,
+            seg.ethnicity_of_arrestee as ethnicity,
+            CASE seg.ethnicity_of_arrestee
+              WHEN 'H' THEN 'Hispanic or Latino'
+              WHEN 'N' THEN 'Not Hispanic or Latino'
+              ELSE 'Unknown'
+            END as ethnicity_description,
+            COUNT(*) as count
+          `;
+          groupByClause = `GROUP BY seg.${offenseField}, seg.ethnicity_of_arrestee`;
+          break;
+        case "age_group":
+          selectClause = `
+            seg.${offenseField} as offense_code,
+            CASE
+              WHEN SAFE_CAST(seg.age_of_arrestee AS INT64) < 18 THEN 'Under 18'
+              WHEN SAFE_CAST(seg.age_of_arrestee AS INT64) BETWEEN 18 AND 24 THEN '18-24'
+              WHEN SAFE_CAST(seg.age_of_arrestee AS INT64) BETWEEN 25 AND 34 THEN '25-34'
+              WHEN SAFE_CAST(seg.age_of_arrestee AS INT64) BETWEEN 35 AND 44 THEN '35-44'
+              WHEN SAFE_CAST(seg.age_of_arrestee AS INT64) BETWEEN 45 AND 54 THEN '45-54'
+              WHEN SAFE_CAST(seg.age_of_arrestee AS INT64) BETWEEN 55 AND 64 THEN '55-64'
+              WHEN SAFE_CAST(seg.age_of_arrestee AS INT64) >= 65 THEN '65+'
+              ELSE 'Unknown'
+            END as age_group,
+            COUNT(*) as count
+          `;
+          groupByClause = `GROUP BY seg.${offenseField}, age_group`;
+          break;
+      }
+    }
+
+    const sql = `
+      SELECT ${selectClause}
+      FROM \`${PROJECT_ID}.${DATASET}.${table}\` seg
+      JOIN \`${PROJECT_ID}.${DATASET}.agencies\` ag ON seg.ori = ag.ori
+      ${whereClause}
+      ${groupByClause}
+      ORDER BY count DESC
+      LIMIT ${limit}
+    `;
+
+    const rows = await this.runQuery(sql);
+
+    // Add offense descriptions
+    rows.forEach((row: any) => {
+      if (row.offense_code) {
+        row.offense_description =
+          UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
+      }
+    });
+
+    return {
+      results: rows,
+      total_rows: rows.length,
+      query_info: `${input.segmentType} ${input.demographicDimension} by offense`,
+    };
+  }
+
+  // =========================================================================
+  // ATTEMPTED VS COMPLETED ANALYSIS
+  // =========================================================================
+
+  @DaemoFunction({
+    description:
+      "Analyze attempted vs completed crimes by offense type. Shows what percentage of each crime type is attempted vs successfully completed. Use this to understand crime completion rates.",
+    tags: ["nibrs", "attempted", "completed", "offense", "success-rate"],
+    category: "NIBRS",
+    inputSchema: GetAttemptedCompletedInput,
+    outputSchema: CountResultOutput,
+  })
+  async getAttemptedCompletedAnalysis(
+    input: z.infer<typeof GetAttemptedCompletedInput>,
+  ) {
+    const conditions: string[] = [];
+
+    // State filtering
+    if (input.stateAbbr) {
+      conditions.push(`ag.state_abbr = '${input.stateAbbr}'`);
+    }
+    if (input.ori) {
+      conditions.push(`o.ori = '${input.ori}'`);
+    }
+    if (input.fromYear) {
+      conditions.push(`o.data_year >= ${input.fromYear}`);
+    }
+    if (input.toYear) {
+      conditions.push(`o.data_year <= ${input.toYear}`);
+    }
+    if (input.offenseCode) {
+      conditions.push(`o.ucr_offense_code = '${input.offenseCode}'`);
+    }
+
+    const whereClause = this.buildWhereClause(conditions);
+    const limit = Math.min(input.limit || 100, 10000);
+
+    const sql = `
+      SELECT
+        o.ucr_offense_code as offense_code,
+        o.offense_attempted_or_completed as status,
+        CASE o.offense_attempted_or_completed
+          WHEN 'A' THEN 'Attempted'
+          WHEN 'C' THEN 'Completed'
+          ELSE 'Unknown'
+        END as status_description,
+        COUNT(*) as count
+      FROM \`${PROJECT_ID}.${DATASET}.offense_segment\` o
+      JOIN \`${PROJECT_ID}.${DATASET}.agencies\` ag ON o.ori = ag.ori
+      ${whereClause}
+      GROUP BY o.ucr_offense_code, o.offense_attempted_or_completed
+      ORDER BY o.ucr_offense_code, count DESC
+      LIMIT ${limit}
+    `;
+
+    const rows = await this.runQuery(sql);
+
+    // Add offense descriptions
+    rows.forEach((row: any) => {
+      if (row.offense_code) {
+        row.offense_description =
+          UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
+      }
+    });
+
+    return {
+      results: rows,
+      total_rows: rows.length,
+      query_info: "Attempted vs completed by offense type",
+    };
+  }
+
+  // =========================================================================
+  // INCIDENT LEVEL STATISTICS
+  // =========================================================================
+
+  @DaemoFunction({
+    description:
+      "Get incident-level statistics like average offenses per incident, victims per incident, and offenders per incident. Use this to understand the complexity and scale of crime incidents.",
+    tags: ["nibrs", "incident", "statistics", "averages"],
+    category: "NIBRS",
+    inputSchema: GetIncidentLevelStatsInput,
+    outputSchema: CountResultOutput,
+  })
+  async getIncidentLevelStats(
+    input: z.infer<typeof GetIncidentLevelStatsInput>,
+  ) {
+    const conditions: string[] = [];
+
+    // State filtering
+    if (input.stateAbbr) {
+      conditions.push(`ag.state_abbr = '${input.stateAbbr}'`);
+    }
+    if (input.ori) {
+      conditions.push(`a.ori = '${input.ori}'`);
+    }
+    if (input.fromYear) {
+      conditions.push(`a.data_year >= ${input.fromYear}`);
+    }
+    if (input.toYear) {
+      conditions.push(`a.data_year <= ${input.toYear}`);
+    }
+
+    // For offense filtering, we need to join with offense_segment
+    let joinClause = "";
+    if (input.offenseCode) {
+      joinClause = `
+        JOIN \`${PROJECT_ID}.${DATASET}.offense_segment\` o
+          ON a.ori = o.ori AND a.incident_number = o.incident_number AND a.data_year = o.data_year
+      `;
+      conditions.push(`o.ucr_offense_code = '${input.offenseCode}'`);
+    }
+
+    const whereClause = this.buildWhereClause(conditions);
+    const limit = Math.min(input.limit || 100, 10000);
+
+    let selectClause: string;
+    let groupByClause: string;
+
+    switch (input.groupBy) {
+      case "offense":
+        selectClause = `
+          o.ucr_offense_code as offense_code,
+          COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count,
+          AVG(a.total_offense_segments) as avg_offenses_per_incident,
+          AVG(a.total_victim_segments) as avg_victims_per_incident,
+          AVG(a.total_offender_segments) as avg_offenders_per_incident,
+          AVG(a.total_arrestee_segments) as avg_arrestees_per_incident
+        `;
+        groupByClause = "GROUP BY o.ucr_offense_code";
+        joinClause = `
+          JOIN \`${PROJECT_ID}.${DATASET}.offense_segment\` o
+            ON a.ori = o.ori AND a.incident_number = o.incident_number AND a.data_year = o.data_year
+        `;
+        break;
+      case "state":
+        selectClause = `
+          ag.state_abbr as state,
+          COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count,
+          AVG(a.total_offense_segments) as avg_offenses_per_incident,
+          AVG(a.total_victim_segments) as avg_victims_per_incident,
+          AVG(a.total_offender_segments) as avg_offenders_per_incident,
+          AVG(a.total_arrestee_segments) as avg_arrestees_per_incident
+        `;
+        groupByClause = "GROUP BY ag.state_abbr";
+        break;
+      case "year":
+        selectClause = `
+          a.data_year as year,
+          COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count,
+          AVG(a.total_offense_segments) as avg_offenses_per_incident,
+          AVG(a.total_victim_segments) as avg_victims_per_incident,
+          AVG(a.total_offender_segments) as avg_offenders_per_incident,
+          AVG(a.total_arrestee_segments) as avg_arrestees_per_incident
+        `;
+        groupByClause = "GROUP BY a.data_year";
+        break;
+      case "overall":
+      default:
+        selectClause = `
+          COUNT(DISTINCT CONCAT(a.ori, '-', a.incident_number)) as incident_count,
+          AVG(a.total_offense_segments) as avg_offenses_per_incident,
+          AVG(a.total_victim_segments) as avg_victims_per_incident,
+          AVG(a.total_offender_segments) as avg_offenders_per_incident,
+          AVG(a.total_arrestee_segments) as avg_arrestees_per_incident
+        `;
+        groupByClause = "";
+        break;
+    }
+
+    const sql = `
+      SELECT ${selectClause}
+      FROM \`${PROJECT_ID}.${DATASET}.administrative_segment\` a
+      JOIN \`${PROJECT_ID}.${DATASET}.agencies\` ag ON a.ori = ag.ori
+      ${joinClause}
+      ${whereClause}
+      ${groupByClause}
+      ORDER BY incident_count DESC
+      LIMIT ${limit}
+    `;
+
+    const rows = await this.runQuery(sql);
+
+    // Add offense descriptions if grouping by offense
+    if (input.groupBy === "offense") {
+      rows.forEach((row: any) => {
+        if (row.offense_code) {
+          row.offense_description =
+            UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || "Unknown";
+        }
+      });
+    }
+
+    return {
+      results: rows,
+      total_rows: rows.length,
+      query_info: `Incident statistics grouped by: ${input.groupBy}`,
     };
   }
 

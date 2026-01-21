@@ -670,6 +670,96 @@ export const ExecuteCustomQueryInput = z.object({
     .describe("Maximum rows to return (capped at 10000)"),
 });
 
+// --- Victims By Offense ---
+export const GetVictimsByOffenseInput = z.object({
+  stateAbbr: optionalEnum(StateAbbrEnum.options).describe("Filter by state"),
+  ori: optionalString.describe("Filter by agency ORI"),
+  fromYear: optionalInt.describe("Start year"),
+  toYear: optionalInt.describe("End year"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by specific offense code",
+  ),
+  sex: optionalEnum(SexEnum.options).describe("Filter by victim sex"),
+  race: optionalEnum(RaceEnum.options).describe("Filter by victim race"),
+  victimType: optionalEnum(VictimTypeEnum.options).describe(
+    "Filter by victim type",
+  ),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
+});
+
+// --- Arrestees By Offense ---
+export const GetArresteesByOffenseInput = z.object({
+  stateAbbr: optionalEnum(StateAbbrEnum.options).describe("Filter by state"),
+  ori: optionalString.describe("Filter by agency ORI"),
+  fromYear: optionalInt.describe("Start year"),
+  toYear: optionalInt.describe("End year"),
+  offenseCode: optionalString.describe("Filter by specific UCR offense code"),
+  sex: optionalEnum(SexEnum.options).describe("Filter by arrestee sex"),
+  race: optionalEnum(RaceEnum.options).describe("Filter by arrestee race"),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
+});
+
+// --- Offense Demographic Cross-Tabulation ---
+export const GetOffenseDemographicCrossInput = z.object({
+  stateAbbr: optionalEnum(StateAbbrEnum.options).describe("Filter by state"),
+  ori: optionalString.describe("Filter by agency ORI"),
+  fromYear: optionalInt.describe("Start year"),
+  toYear: optionalInt.describe("End year"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by specific offense code",
+  ),
+  segmentType: z
+    .enum(["victim", "arrestee"])
+    .describe("Analyze victims or arrestees"),
+  demographicDimension: z
+    .enum(["sex", "race", "ethnicity", "age_group"])
+    .describe("Which demographic dimension to cross-tabulate with offense"),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
+});
+
+// --- Attempted vs Completed Analysis ---
+export const GetAttemptedCompletedInput = z.object({
+  stateAbbr: optionalEnum(StateAbbrEnum.options).describe("Filter by state"),
+  ori: optionalString.describe("Filter by agency ORI"),
+  fromYear: optionalInt.describe("Start year"),
+  toYear: optionalInt.describe("End year"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by specific offense code",
+  ),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
+});
+
+// --- Incident Level Stats ---
+export const GetIncidentLevelStatsInput = z.object({
+  stateAbbr: optionalEnum(StateAbbrEnum.options).describe("Filter by state"),
+  ori: optionalString.describe("Filter by agency ORI"),
+  fromYear: optionalInt.describe("Start year"),
+  toYear: optionalInt.describe("End year"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by primary offense code",
+  ),
+  groupBy: optionalEnumWithDefault(
+    ["offense", "state", "year", "overall"],
+    "overall",
+  ).describe("How to group statistics"),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
+});
+
 // =============================================================================
 //  4. OUTPUT SCHEMAS
 // =============================================================================
