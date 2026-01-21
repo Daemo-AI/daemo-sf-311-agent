@@ -811,3 +811,85 @@ export const CustomQueryOutput = z.object({
   columns: z.array(z.string()),
   truncated: z.boolean(),
 });
+
+// =============================================================================
+//  5. POPULATION-AWARE SCHEMAS
+// =============================================================================
+
+export const GetAgenciesByPopulationInput = z.object({
+  stateAbbr: optionalEnum(StateAbbrEnum.options).describe("Filter by state"),
+  minPopulation: optionalInt.describe("Minimum population served"),
+  maxPopulation: optionalInt.describe("Maximum population served"),
+  toYear: optionalInt.describe("Year of population data (defaults to 2024)"),
+  nibrsOnly: z
+    .boolean()
+    .nullish()
+    .transform((val) => val ?? true)
+    .describe("Only NIBRS-participating agencies"),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000)
+    .describe("Maximum results"),
+});
+
+export const AgencyWithPopulationOutput = z.object({
+  ori: z.string(),
+  agency_name: z.string(),
+  state_abbr: z.string(),
+  population: z.number(),
+  population_category: z.string(),
+  is_nibrs: z.boolean().nullable(),
+});
+
+export const AgenciesWithPopulationOutput = z.object({
+  agencies: z.array(AgencyWithPopulationOutput),
+  total_count: z.number(),
+  population_stats: z.object({
+    min_population: z.number(),
+    max_population: z.number(),
+    avg_population: z.number(),
+    total_population: z.number(),
+  }),
+});
+
+export const GetCrimeRatesByPopulationInput = z.object({
+  stateAbbr: optionalEnum(StateAbbrEnum.options).describe("Filter by state"),
+  fromYear: optionalInt.describe("Start year"),
+  toYear: optionalInt.describe("End year"),
+  offenseCode: optionalEnum(UCROffenseCodeEnum.options).describe(
+    "Filter by specific offense code",
+  ),
+  populationCategory: z
+    .enum([
+      "very_large",
+      "large",
+      "medium",
+      "small",
+      "very_small",
+      "tiny",
+      "all",
+    ])
+    .nullish()
+    .transform((val) => val ?? "all")
+    .describe(
+      "Population category: very_large (500K+), large (250K-500K), medium (100K-250K), small (50K-100K), very_small (10K-50K), tiny (<10K), all (compare all categories)",
+    ),
+  groupBy: optionalEnumWithDefault(
+    ["population_category", "state", "offense", "year"],
+    "population_category",
+  ).describe("How to group results"),
+  limit: z
+    .number()
+    .nullish()
+    .transform((val) => val ?? 10000),
+});
+
+export const CrimeRateOutput = z.object({
+  results: z.array(z.record(z.string(), z.any())),
+  total_rows: z.number(),
+  metadata: z.object({
+    includes_per_capita_rates: z.boolean(),
+    population_categories_included: z.array(z.string()),
+  }),
+});

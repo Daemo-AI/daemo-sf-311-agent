@@ -30,6 +30,10 @@ import {
   TrendOutput,
   DemographicOutput,
   CustomQueryOutput,
+  GetAgenciesByPopulationInput,
+  AgenciesWithPopulationOutput,
+  GetCrimeRatesByPopulationInput,
+  CrimeRateOutput,
 } from "./nibrs.schemas";
 
 configDotenv();
@@ -2364,6 +2368,254 @@ export class NIBRSCrimeFunctions {
       row_count: rows.length,
       columns,
       truncated: rows.length >= maxLimit,
+    };
+  }
+
+  // =========================================================================
+  // POPULATION-AWARE QUERIES
+  // =========================================================================
+
+  @DaemoFunction({
+    description:
+      "Get law enforcement agencies WITH their population data from the FBI Law Enforcement Employees dataset. Use this to identify agencies by population size (e.g., 'large urban agencies serving >500K people' or 'small rural agencies serving <50K'). This dataset includes year-specific population data (2015-2024) and FBI's official population group categories. This is THE CORRECT function to use when the user asks questions involving population thresholds. Returns agencies sorted by population descending. CRITICAL: This solves the consistency problem by providing actual FBI population data instead of proxies like crime counts.",
+    tags: ["nibrs", "agency", "population", "urban", "rural", "demographics"],
+    category: "NIBRS",
+    inputSchema: GetAgenciesByPopulationInput,
+    outputSchema: AgenciesWithPopulationOutput,
+  })
+  async getAgenciesByPopulation(
+    input: z.infer<typeof GetAgenciesByPopulationInput>,
+  ) {
+    const conditions: string[] = [];
+
+    // Default to most recent year if not specified
+    const dataYear = input.toYear || 2024;
+
+    if (input.stateAbbr) {
+      conditions.push(`le.state_abbr = '${input.stateAbbr}'`);
+    }
+    if (input.minPopulation !== undefined) {
+      conditions.push(`le.population >= ${input.minPopulation}`);
+    }
+    if (input.maxPopulation !== undefined) {
+      conditions.push(`le.population <= ${input.maxPopulation}`);
+    }
+
+    // Filter out null/invalid populations
+    conditions.push(`le.population IS NOT NULL`);
+    conditions.push(`le.population > 0`);
+    conditions.push(`le.data_year = ${dataYear}`);
+
+    const whereClause = this.buildWhereClause(conditions);
+    const limit = Math.min(input.limit || 1000, 10000);
+
+    const sql = `
+      SELECT
+        le.ori,
+        le.pub_agency_name as agency_name,
+        le.state_abbr,
+        le.population,
+        le.population_group_desc,
+        le.data_year,
+        ag.is_nibrs
+      FROM \`${PROJECT_ID}.${DATASET}.law_enforcement_employees\` le
+      LEFT JOIN \`${PROJECT_ID}.${DATASET}.agencies\` ag ON le.ori = ag.ori
+      ${whereClause}
+      ${input.nibrsOnly ? "AND ag.is_nibrs = TRUE" : ""}
+      ORDER BY le.population DESC
+      LIMIT ${limit}
+    `;
+
+    const rows = await this.runQuery(sql);
+
+    // Map to output format
+    const agencies = rows.map((row: any) => ({
+      ori: row.ori,
+      agency_name: row.agency_name,
+      state_abbr: row.state_abbr,
+      population: row.population || 0,
+      population_category: row.population_group_desc || "Unknown",
+      is_nibrs: row.is_nibrs,
+    }));
+
+    // Calculate statistics
+    const populations = agencies.map((a) => a.population);
+    const stats = {
+      min_population: populations.length > 0 ? Math.min(...populations) : 0,
+      max_population: populations.length > 0 ? Math.max(...populations) : 0,
+      avg_population:
+        populations.length > 0
+          ? Math.round(populations.reduce((a, b) => a + b, 0) / populations.length)
+          : 0,
+      total_population: populations.reduce((a, b) => a + b, 0),
+    };
+
+    return {
+      agencies,
+      total_count: agencies.length,
+      population_stats: stats,
+    };
+  }
+
+  @DaemoFunction({
+    description:
+      "Calculate crime rates PER CAPITA (per 100,000 residents) grouped by agency population size using FBI Law Enforcement Employees population data. Use this to compare crime rates between large urban agencies vs small rural agencies. Returns incident counts, population served, and per-capita rates broken down by FBI's official population categories. This is THE DEFINITIVE function for answering questions like 'Do large cities have higher crime rates than small towns?' or 'Compare weapon usage in urban vs rural areas.' CRITICAL: This ensures CONSISTENT and ACCURATE population-based comparisons by using actual FBI population data matched by year (2015-2024).",
+    tags: [
+      "nibrs",
+      "crime-rate",
+      "per-capita",
+      "population",
+      "urban",
+      "rural",
+      "comparison",
+      "statistics",
+    ],
+    category: "NIBRS",
+    inputSchema: GetCrimeRatesByPopulationInput,
+    outputSchema: CrimeRateOutput,
+  })
+  async getCrimeRatesByPopulation(
+    input: z.infer<typeof GetCrimeRatesByPopulationInput>,
+  ) {
+    const conditions: string[] = [];
+
+    // State filtering
+    if (input.stateAbbr) {
+      conditions.push(`le.state_abbr = '${input.stateAbbr}'`);
+    }
+
+    // Year filtering
+    if (input.fromYear) {
+      conditions.push(`o.data_year >= ${input.fromYear}`);
+    }
+    if (input.toYear) {
+      conditions.push(`o.data_year <= ${input.toYear}`);
+    }
+
+    // Offense filtering
+    if (input.offenseCode) {
+      conditions.push(`o.ucr_offense_code = '${input.offenseCode}'`);
+    }
+
+    // Population filtering - ensure we only count agencies with valid population data
+    conditions.push(`le.population IS NOT NULL`);
+    conditions.push(`le.population > 0`);
+
+    // Population category filtering (if specific category requested)
+    if (input.populationCategory && input.populationCategory !== "all") {
+      const categoryRanges: Record<string, string> = {
+        very_large: "le.population >= 500000",
+        large: "le.population >= 250000 AND le.population < 500000",
+        medium: "le.population >= 100000 AND le.population < 250000",
+        small: "le.population >= 50000 AND le.population < 100000",
+        very_small: "le.population >= 10000 AND le.population < 50000",
+        tiny: "le.population < 10000",
+      };
+      const rangeCondition = categoryRanges[input.populationCategory];
+      if (rangeCondition) {
+        conditions.push(rangeCondition);
+      }
+    }
+
+    const whereClause = this.buildWhereClause(conditions);
+    const limit = Math.min(input.limit || 10000, 10000);
+
+    let selectClause: string;
+    let groupByClause: string;
+    let orderByClause: string;
+
+    switch (input.groupBy) {
+      case "population_category":
+        selectClause = `
+          le.population_group_desc as population_category,
+          COUNT(DISTINCT CONCAT(o.ori, '-', o.incident_number)) as incident_count,
+          SUM(le.population) as total_population,
+          COUNT(DISTINCT le.ori) as agency_count,
+          ROUND((COUNT(DISTINCT CONCAT(o.ori, '-', o.incident_number)) / SUM(le.population)) * 100000, 2) as rate_per_100k
+        `;
+        groupByClause = "GROUP BY le.population_group_desc";
+        orderByClause = "ORDER BY MIN(le.population) DESC";
+        break;
+
+      case "state":
+        selectClause = `
+          le.state_abbr as state,
+          le.population_group_desc as population_category,
+          COUNT(DISTINCT CONCAT(o.ori, '-', o.incident_number)) as incident_count,
+          SUM(le.population) as total_population,
+          COUNT(DISTINCT le.ori) as agency_count,
+          ROUND((COUNT(DISTINCT CONCAT(o.ori, '-', o.incident_number)) / SUM(le.population)) * 100000, 2) as rate_per_100k
+        `;
+        groupByClause = "GROUP BY le.state_abbr, le.population_group_desc";
+        orderByClause = "ORDER BY le.state_abbr, MIN(le.population) DESC";
+        break;
+
+      case "offense":
+        selectClause = `
+          o.ucr_offense_code as offense_code,
+          le.population_group_desc as population_category,
+          COUNT(*) as offense_count,
+          SUM(le.population) as total_population,
+          COUNT(DISTINCT le.ori) as agency_count,
+          ROUND((COUNT(*) / SUM(le.population)) * 100000, 2) as rate_per_100k
+        `;
+        groupByClause = "GROUP BY o.ucr_offense_code, le.population_group_desc";
+        orderByClause = "ORDER BY o.ucr_offense_code, MIN(le.population) DESC";
+        break;
+
+      case "year":
+        selectClause = `
+          o.data_year as year,
+          le.population_group_desc as population_category,
+          COUNT(DISTINCT CONCAT(o.ori, '-', o.incident_number)) as incident_count,
+          SUM(le.population) as total_population,
+          COUNT(DISTINCT le.ori) as agency_count,
+          ROUND((COUNT(DISTINCT CONCAT(o.ori, '-', o.incident_number)) / SUM(le.population)) * 100000, 2) as rate_per_100k
+        `;
+        groupByClause = "GROUP BY o.data_year, le.population_group_desc";
+        orderByClause = "ORDER BY o.data_year, MIN(le.population) DESC";
+        break;
+
+      default:
+        throw new Error(`Invalid groupBy option: ${input.groupBy}`);
+    }
+
+    // CRITICAL: Join on BOTH ori AND data_year to get year-specific population
+    const sql = `
+      SELECT ${selectClause}
+      FROM \`${PROJECT_ID}.${DATASET}.offense_segment\` o
+      JOIN \`${PROJECT_ID}.${DATASET}.law_enforcement_employees\` le
+        ON o.ori = le.ori AND o.data_year = le.data_year
+      ${whereClause}
+      ${groupByClause}
+      ${orderByClause}
+      LIMIT ${limit}
+    `;
+
+    const rows = await this.runQuery(sql);
+
+    // Add offense descriptions if grouping by offense
+    if (input.groupBy === "offense") {
+      rows.forEach((row: any) => {
+        if (row.offense_code) {
+          row.offense_description =
+            UCR_OFFENSE_DESCRIPTIONS[row.offense_code] || row.offense_code;
+        }
+      });
+    }
+
+    // Get unique population categories in results
+    const categoriesIncluded = [
+      ...new Set(rows.map((r: any) => r.population_category)),
+    ] as string[];
+
+    return {
+      results: rows,
+      total_rows: rows.length,
+      metadata: {
+        includes_per_capita_rates: true,
+        population_categories_included: categoriesIncluded,
+      },
     };
   }
 }
