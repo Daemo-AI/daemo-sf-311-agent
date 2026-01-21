@@ -21,13 +21,28 @@ export class NIBRSCrimeFunctions {
   constructor() {
     // Initialize BigQuery client with service account credentials from environment
     const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 
     if (serviceAccountPath) {
+      // Use file path
       this.bigquery = new BigQuery({
         keyFilename: serviceAccountPath,
         projectId: PROJECT_ID,
       });
-      console.log("[BigQuery] Initialized with service account credentials");
+      console.log("[BigQuery] Initialized with service account credentials from file");
+    } else if (serviceAccountJson) {
+      // Use JSON content directly
+      try {
+        const credentials = JSON.parse(serviceAccountJson);
+        this.bigquery = new BigQuery({
+          projectId: PROJECT_ID,
+          credentials,
+        });
+        console.log("[BigQuery] Initialized with service account credentials from JSON");
+      } catch (error) {
+        console.error("[BigQuery] Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON:", error);
+        throw new Error("Invalid GOOGLE_APPLICATION_CREDENTIALS_JSON format");
+      }
     } else {
       // Fallback to default credentials (useful for GCP environments)
       this.bigquery = new BigQuery({ projectId: PROJECT_ID });
