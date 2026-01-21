@@ -1,0 +1,940 @@
+Amazing work! But, this isn't good enough. Remember, I need this agent to be able to answer all of the following questions:
+
+  100 Diverse Questions for NIBRS Crime Data AI Agent
+  I've organized these by user persona to ensure diversity in perspective, complexity, and analytical needs.
+
+  Journalist/Reporter (Questions 1-15)
+  What are the top 10 cities with the highest murder rates in 2024?
+  How has violent crime changed in Chicago over the past 5 years?
+  Which state saw the biggest increase in carjackings from 2023 to 2024?
+  What percentage of robberies in New York involve a weapon?
+  Are hate crimes increasing nationally? Show me the year-over-year trend.
+  What time of day do most aggravated assaults occur?
+  Which major city has the lowest property crime rate?
+  How do crime rates in Austin compare to other Texas cities of similar size?
+  What's the clearance rate for homicides in Los Angeles?
+  Are drug arrests up or down in states that legalized marijuana?
+  Which metropolitan area has seen the sharpest decline in crime since 2020?
+  How many mass shooting incidents (4+ victims) occurred in 2024?
+  What percentage of burglaries happen at residential vs commercial locations?
+  Is there a correlation between city population size and violent crime rate?
+  What are the deadliest weekends of the year for violent crime?
+
+  Policy Analyst/Researcher (Questions 16-30)
+  What's the national arrest rate for aggravated assault broken down by race?
+  How does the victim-to-arrest ratio vary by offense type?
+  What percentage of reported crimes result in an arrest within the same year?
+  Compare violent crime rates between rural and urban agencies.
+  What's the average number of offenses per incident across different crime categories?
+  How do crime patterns differ between agencies serving populations under 50,000 vs over 500,000?
+  What's the demographic breakdown of juvenile vs adult arrestees by offense type?
+  Calculate the year-over-year percent change in each major crime category since 2020.
+  What percentage of violent crime victims are male vs female by offense type?
+  How does weapon involvement in robberies vary by region?
+  What's the distribution of crime by hour of day and day of week?
+  Which offense types have the highest proportion of attempted vs completed crimes?
+  How does the age distribution of victims differ between property and violent crimes?
+  What percentage of agencies report zero homicides in a given year?
+  Calculate the Gini coefficient of crime distribution across agencies.
+
+  Law Enforcement Official (Questions 31-45)
+  What are the peak hours for domestic violence calls in my jurisdiction?
+  How does our agency's clearance rate compare to similar-sized departments in our state?
+  What percentage of our aggravated assaults involve firearms vs other weapons?
+  Show me the monthly trend of motor vehicle thefts in our city.
+  Which location types have the most robbery incidents?
+  What's our arrest rate for drug violations compared to the state average?
+  How many repeat offenders (multiple arrests same year) do we have?
+  What crimes are most commonly committed together in the same incident?
+  What's the average time between incident and arrest for different crime types?
+  Which offense categories are driving the increase in our overall crime numbers?
+  How does crime in our jurisdiction compare to neighboring agencies?
+  What's the breakdown of arrests by type (on-view vs summoned vs taken into custody)?
+  Show me all incidents with 3 or more victims in the past year.
+  What percentage of our victims are law enforcement officers?
+  Which bias motivations are most common in hate crimes in our region?
+
+  City/Local Government Official (Questions 46-58)
+  How does our city's crime rate rank among cities of similar population in our state?
+  What's the total number of reported crimes in our city for 2024?
+  Show me crime trends in our city over the past 3 years by quarter.
+  Which neighborhoods (by agency) have the highest and lowest crime rates?
+  How much has violent crime decreased/increased since we implemented new policies in 2022?
+  What percentage of crimes in our city are property crimes vs violent crimes?
+  Compare our city's crime stats to the top 5 cities people are relocating from.
+  What's the year-over-year trend in vandalism and quality-of-life crimes?
+  How does our murder rate compare to the national average?
+  What are the most common crimes affecting businesses in our downtown area?
+  Show me a breakdown of crimes by the hour to help with patrol scheduling.
+  How does crime in our MSA compare to other metropolitan areas of similar size?
+  What's the trend in weapon-related offenses in our city?
+
+  Community Advocate/Social Justice Researcher (Questions 59-70)
+  What's the racial breakdown of arrestees vs victims for violent crimes?
+  Are there disparities in arrest rates by race for drug violations?
+  What percentage of juvenile arrests are for non-violent offenses?
+  How do clearance rates differ by victim demographics?
+  What's the age and gender distribution of domestic violence victims?
+  Are arrest rates for similar offenses consistent across different demographic groups?
+  What percentage of hate crimes target each protected group?
+  How has the racial composition of arrestees changed over time?
+  What's the ratio of male to female victims in sexual assault cases?
+  Compare juvenile arrest rates across states.
+  What percentage of victims are elderly (65+) by crime type?
+  How do arrest patterns for weapon violations vary by demographics?
+
+  Real Estate/Insurance Professional (Questions 71-80)
+  What are the safest cities with populations over 100,000?
+  Compare property crime rates across ZIP codes in the Phoenix metro area.
+  What's the burglary rate in Denver vs Seattle vs Portland?
+  How has motor vehicle theft trended in Miami over the past 3 years?
+  Which California cities have the lowest violent crime rates?
+  What's the vandalism rate in suburban vs urban agencies?
+  Rank all agencies in Florida by overall crime rate per 100k.
+  What percentage of burglaries are residential vs commercial by state?
+  How do theft rates compare between major Texas metros?
+  What's the arson rate in different regions of the country?
+
+  Student/Academic Researcher (Questions 81-90)
+  Is there a seasonal pattern to violent crime nationally?
+  How does crime reporting completeness vary by state?
+  What's the correlation between agency size and crime rate?
+  How do victim and offender demographics compare for different crime types?
+  What percentage of incidents involve multiple offenses?
+  How has the mix of crime types changed from 2020 to 2024?
+  What states have the most complete NIBRS data coverage?
+  Is there evidence of weekend vs weekday crime patterns?
+  How do crime rates in college towns compare to non-college towns of similar size?
+  What's the distribution of victim ages across all crime types?
+
+  General Public/Curious Resident (Questions 91-100)
+  Is crime going up or down in America?
+  What's the most common crime in the United States?
+  How many murders happened in the US last year?
+  What city has the most crime?
+  Is my city safer than the national average?
+  What time of day is crime most likely to happen?
+  How many crimes happen on New Year's Eve vs a normal day?
+  What are the chances of being a victim of violent crime?
+  Are more crimes attempted or completed?
+  What's the safest state to live in based on crime data?
+
+  These questions span simple lookups to complex multi-dimensional analyses, covering temporal trends, geographic comparisons, demographic breakdowns, rate calculations, and cross-tabulations—giving you a robust test set for your
+  agent.
+
+  -====-
+  Furthermore, here is the schema of the Big Query DB again for your understanding:
+
+  # NIBRS Crime Data - BigQuery Schema Documentation
+
+  This document describes the FBI National Incident-Based Reporting System (NIBRS) data schema in BigQuery. Use this reference to write accurate SQL queries against the `nibrs_data` dataset.
+
+  ## Dataset: `nibrs_data`
+
+  The dataset contains crime incident data from law enforcement agencies across the United States, spanning years 2020-2025.
+
+  ---
+
+  ## Table: `agencies`
+
+  Reference table containing information about law enforcement agencies. Join with other tables using the `ori` field.
+
+  | Column             | Type    | Description                                                                                                        |
+  | ------------------ | ------- | ------------------------------------------------------------------------------------------------------------------ |
+  | `ori`              | STRING  | **Primary Key.** Originating Agency Identifier - unique 9-character code for each agency (e.g., 'CA0010100')       |
+  | `agency_name`      | STRING  | Full name of the agency (e.g., 'Los Angeles Police Department')                                                    |
+  | `agency_type_name` | STRING  | Type of agency: 'City', 'County', 'State Police', 'University or College', 'Tribal', 'Other State Agency', 'Other' |
+  | `state_abbr`       | STRING  | Two-letter state abbreviation (e.g., 'CA', 'NY', 'TX')                                                             |
+  | `state_name`       | STRING  | Full state name (e.g., 'California')                                                                               |
+  | `counties`         | STRING  | County or planning region name where agency is located                                                             |
+  | `latitude`         | FLOAT64 | Geographic latitude of agency (nullable)                                                                           |
+  | `longitude`        | FLOAT64 | Geographic longitude of agency (nullable)                                                                          |
+  | `is_nibrs`         | BOOLEAN | Whether agency reports to NIBRS (TRUE/FALSE)                                                                       |
+  | `nibrs_start_date` | DATE    | Date when agency began reporting to NIBRS                                                                          |
+
+  **Row count:** ~19,500 agencies
+
+  ---
+
+  ## Table: `administrative_segment`
+
+  Contains one row per reported crime incident. This is the primary incident-level table.
+
+  | Column                       | Type   | Description                                                                                                                                                          |
+  | ---------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `ori`                        | STRING | **Foreign Key → agencies.ori.** Reporting agency identifier                                                                                                          |
+  | `incident_number`            | STRING | Agency's case number for the incident (unique within agency)                                                                                                         |
+  | `incident_date`              | DATE   | Date the incident occurred (YYYY-MM-DD)                                                                                                                              |
+  | `incident_date_hour`         | INT64  | Hour of day incident occurred (0-23, nullable if unknown)                                                                                                            |
+  | `data_year`                  | INT64  | Year the data was reported (2020-2025)                                                                                                                               |
+  | `state_code`                 | STRING | Two-digit numeric state code                                                                                                                                         |
+  | `segment_level`              | STRING | Always '01' for administrative segment                                                                                                                               |
+  | `report_date_indicator`      | STRING | 'R' = Report date used (actual date unknown)                                                                                                                         |
+  | `total_offense_segments`     | INT64  | Number of offenses in this incident                                                                                                                                  |
+  | `total_victim_segments`      | INT64  | Number of victims in this incident                                                                                                                                   |
+  | `total_offender_segments`    | INT64  | Number of offenders in this incident                                                                                                                                 |
+  | `total_arrestee_segments`    | INT64  | Number of arrestees in this incident                                                                                                                                 |
+  | `city_submission`            | STRING | City identifier within state                                                                                                                                         |
+  | `cleared_exceptionally`      | STRING | Exceptional clearance code: 'A'=Death of Offender, 'B'=Prosecution Declined, 'C'=Juvenile/No Custody, 'D'=Victim Refused, 'E'=Extradition Denied, 'N'=Not Applicable |
+  | `exceptional_clearance_date` | DATE   | Date of exceptional clearance (nullable)                                                                                                                             |
+  | `db_id`                      | STRING | Unique row identifier (format: 'YYYY_rownum')                                                                                                                        |
+
+  **Row count:** ~10.7M rows per year, ~50M+ total
+
+  **Common queries:** Count incidents by agency, date analysis, clearance rates
+
+  ---
+
+  ## Table: `offense_segment`
+
+  Contains one row per offense within an incident. An incident can have multiple offenses.
+
+  | Column                           | Type   | Description                                                          |
+  | -------------------------------- | ------ | -------------------------------------------------------------------- |
+  | `ori`                            | STRING | **Foreign Key → agencies.ori.** Reporting agency identifier          |
+  | `incident_number`                | STRING | Links to administrative_segment.incident_number                      |
+  | `incident_date`                  | DATE   | Date the incident occurred                                           |
+  | `data_year`                      | INT64  | Year the data was reported                                           |
+  | `ucr_offense_code`               | STRING | **FBI offense code.** See Offense Codes table below                  |
+  | `offense_attempted_or_completed` | STRING | 'A' = Attempted, 'C' = Completed                                     |
+  | `location_type`                  | STRING | Two-digit code for crime location. See Location Codes below          |
+  | `num_premises_entered`           | INT64  | For burglary: number of premises entered                             |
+  | `method_of_entry`                | STRING | 'F' = Force, 'N' = No Force                                          |
+  | `bias_motivation`                | STRING | Two-digit hate crime bias code (if applicable). See Bias Codes below |
+  | `offender_suspected_of_using1`   | STRING | 'A'=Alcohol, 'C'=Computer Equipment, 'D'=Drugs, 'N'=Not Applicable   |
+  | `offender_suspected_of_using2`   | STRING | Secondary substance (same codes)                                     |
+  | `offender_suspected_of_using3`   | STRING | Tertiary substance (same codes)                                      |
+  | `type_of_criminal_activity1`     | STRING | Criminal activity type code                                          |
+  | `type_of_criminal_activity2`     | STRING | Secondary activity                                                   |
+  | `type_of_criminal_activity3`     | STRING | Tertiary activity                                                    |
+  | `type_weapon_force_involved1`    | STRING | Two-digit weapon code. See Weapon Codes below                        |
+  | `automatic_weapon_indicator1`    | STRING | 'A' = Automatic weapon                                               |
+  | `type_weapon_force_involved2`    | STRING | Secondary weapon                                                     |
+  | `automatic_weapon_indicator2`    | STRING | Automatic indicator for weapon 2                                     |
+  | `type_weapon_force_involved3`    | STRING | Tertiary weapon                                                      |
+  | `automatic_weapon_indicator3`    | STRING | Automatic indicator for weapon 3                                     |
+  | `segment_level`                  | STRING | Always '02' for offense segment                                      |
+  | `state_code`                     | STRING | Two-digit numeric state code                                         |
+  | `db_id`                          | STRING | Unique row identifier                                                |
+
+  **Row count:** ~12M rows per year
+
+  ---
+
+  ## Table: `victim_segment`
+
+  Contains one row per victim within an incident. An incident can have multiple victims.
+
+  | Column                                                                         | Type   | Description
+  |
+  | ------------------------------------------------------------------------------ | ------ |
+  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `ori`                                                                          | STRING | **Foreign Key → agencies.ori.** Reporting agency identifier
+  |
+  | `incident_number`                                                              | STRING | Links to administrative_segment.incident_number
+  |
+  | `incident_date`                                                                | DATE   | Date the incident occurred
+  |
+  | `data_year`                                                                    | INT64  | Year the data was reported
+  |
+  | `victim_sequence_number`                                                       | INT64  | Victim number within the incident (1, 2, 3...)
+  |
+  | `type_of_victim`                                                               | STRING | 'I'=Individual, 'B'=Business, 'F'=Financial Institution, 'G'=Government, 'L'=Law Enforcement Officer, 'O'=Other, 'R'=Religious
+  Organization, 'S'=Society/Public, 'U'=Unknown |
+  | `age_of_victim`                                                                | STRING | Age in years ('01'-'99'), 'NB'=Newborn, 'NN'=Neonatal, 'BB'=Baby, '00'=Unknown
+  |
+  | `sex_of_victim`                                                                | STRING | 'M'=Male, 'F'=Female, 'U'=Unknown
+  |
+  | `race_of_victim`                                                               | STRING | 'A'=Asian, 'B'=Black, 'I'=American Indian/Alaska Native, 'P'=Native Hawaiian/Pacific Islander, 'W'=White, 'U'=Unknown
+  |
+  | `ethnicity_of_victim`                                                          | STRING | 'H'=Hispanic, 'N'=Not Hispanic, 'U'=Unknown
+  |
+  | `residence_status_of_victim`                                                   | STRING | 'R'=Resident, 'N'=Nonresident, 'U'=Unknown
+  |
+  | `ucr_offense_code1` through `ucr_offense_code10`                               | STRING | Up to 10 offense codes affecting this victim
+  |
+  | `agg_assault_homicide_circumstance1`                                           | STRING | Two-digit circumstance code for aggravated assault/homicide
+  |
+  | `agg_assault_homicide_circumstance2`                                           | STRING | Secondary circumstance
+  |
+  | `additional_justifiable_homicide_circumstance`                                 | STRING | 'C'=Criminal Killed by Private Citizen, 'O'=Criminal Killed by Police Officer
+  |
+  | `type_of_injury1` through `type_of_injury5`                                    | STRING | 'B'=Broken Bones, 'I'=Internal Injury, 'L'=Severe Laceration, 'M'=Minor Injury, 'N'=None, 'O'=Other Major, 'T'=Loss of Teeth,
+  'U'=Unconsciousness                            |
+  | `offender_sequence_number`                                                     | INT64  | Links victim to specific offender
+  |
+  | `victim_relationship_to_offender1` through `victim_relationship_to_offender10` | STRING | Two-character relationship code. See Relationship Codes below
+  |
+  | `segment_level`                                                                | STRING | Always '04' for victim segment
+  |
+  | `state_code`                                                                   | STRING | Two-digit numeric state code
+  |
+  | `db_id`                                                                        | STRING | Unique row identifier
+  |
+
+  **Row count:** ~12M rows per year
+
+  ---
+
+  ## Table: `arrestee_segment`
+
+  Contains one row per arrestee within an incident.
+
+  | Column                                | Type   | Description                                                                          |
+  | ------------------------------------- | ------ | ------------------------------------------------------------------------------------ |
+  | `ori`                                 | STRING | **Foreign Key → agencies.ori.** Reporting agency identifier                          |
+  | `incident_number`                     | STRING | Links to administrative_segment.incident_number                                      |
+  | `incident_date`                       | DATE   | Date the incident occurred                                                           |
+  | `data_year`                           | INT64  | Year the data was reported                                                           |
+  | `arrestee_sequence_number`            | INT64  | Arrestee number within incident (1, 2, 3...)                                         |
+  | `arrest_transaction_number`           | STRING | Unique arrest identifier                                                             |
+  | `arrest_date`                         | DATE   | Date of arrest                                                                       |
+  | `type_of_arrest`                      | STRING | 'O'=On-View Arrest, 'S'=Summoned/Cited, 'T'=Taken Into Custody                       |
+  | `multiple_arrestee_segment_indicator` | STRING | 'C'=Count Arrestee, 'M'=Multiple, 'N'=Not Applicable                                 |
+  | `ucr_arrest_offense_code`             | STRING | Offense code for which arrested                                                      |
+  | `age_of_arrestee`                     | STRING | Age in years ('01'-'99'), '00'=Unknown                                               |
+  | `sex_of_arrestee`                     | STRING | 'M'=Male, 'F'=Female, 'U'=Unknown                                                    |
+  | `race_of_arrestee`                    | STRING | Same codes as victim race                                                            |
+  | `ethnicity_of_arrestee`               | STRING | Same codes as victim ethnicity                                                       |
+  | `residence_status_of_arrestee`        | STRING | 'R'=Resident, 'N'=Nonresident, 'U'=Unknown                                           |
+  | `disposition_arrestee_under_18`       | STRING | 'D'=Handled Within Dept, 'J'=Referred to Juvenile Court, 'R'=Referred to Adult Court |
+  | `type_weapon_involved1`               | STRING | Weapon code                                                                          |
+  | `automatic_weapon_indicator1`         | STRING | 'A' = Automatic                                                                      |
+  | `type_weapon_involved2`               | STRING | Secondary weapon                                                                     |
+  | `automatic_weapon_indicator2`         | STRING | Automatic indicator                                                                  |
+  | `segment_level`                       | STRING | Always '06' for arrestee segment                                                     |
+  | `state_code`                          | STRING | Two-digit numeric state code                                                         |
+  | `db_id`                               | STRING | Unique row identifier                                                                |
+
+  **Row count:** ~3.3M rows per year
+
+  ---
+
+  ## Reference Codes
+
+  ### UCR Offense Codes (Most Common)
+
+  | Code  | Description                               | Category                |
+  | ----- | ----------------------------------------- | ----------------------- |
+  | `09A` | Murder & Nonnegligent Manslaughter        | Crimes Against Persons  |
+  | `09B` | Negligent Manslaughter                    | Crimes Against Persons  |
+  | `09C` | Justifiable Homicide                      | Crimes Against Persons  |
+  | `100` | Kidnapping/Abduction                      | Crimes Against Persons  |
+  | `11A` | Rape                                      | Crimes Against Persons  |
+  | `11B` | Sodomy                                    | Crimes Against Persons  |
+  | `11C` | Sexual Assault with Object                | Crimes Against Persons  |
+  | `11D` | Fondling                                  | Crimes Against Persons  |
+  | `120` | Robbery                                   | Crimes Against Property |
+  | `13A` | Aggravated Assault                        | Crimes Against Persons  |
+  | `13B` | Simple Assault                            | Crimes Against Persons  |
+  | `13C` | Intimidation                              | Crimes Against Persons  |
+  | `200` | Arson                                     | Crimes Against Property |
+  | `210` | Extortion/Blackmail                       | Crimes Against Property |
+  | `220` | Burglary/Breaking & Entering              | Crimes Against Property |
+  | `23A` | Pocket-Picking                            | Crimes Against Property |
+  | `23B` | Purse-Snatching                           | Crimes Against Property |
+  | `23C` | Shoplifting                               | Crimes Against Property |
+  | `23D` | Theft from Building                       | Crimes Against Property |
+  | `23E` | Theft from Coin-Operated Machine          | Crimes Against Property |
+  | `23F` | Theft from Motor Vehicle                  | Crimes Against Property |
+  | `23G` | Theft of Motor Vehicle Parts              | Crimes Against Property |
+  | `23H` | All Other Larceny                         | Crimes Against Property |
+  | `240` | Motor Vehicle Theft                       | Crimes Against Property |
+  | `250` | Counterfeiting/Forgery                    | Crimes Against Property |
+  | `26A` | False Pretenses/Swindle                   | Crimes Against Property |
+  | `26B` | Credit Card/ATM Fraud                     | Crimes Against Property |
+  | `26C` | Impersonation                             | Crimes Against Property |
+  | `26D` | Welfare Fraud                             | Crimes Against Property |
+  | `26E` | Wire Fraud                                | Crimes Against Property |
+  | `26F` | Identity Theft                            | Crimes Against Property |
+  | `26G` | Hacking/Computer Invasion                 | Crimes Against Property |
+  | `270` | Embezzlement                              | Crimes Against Property |
+  | `280` | Stolen Property Offenses                  | Crimes Against Property |
+  | `290` | Destruction/Damage/Vandalism              | Crimes Against Property |
+  | `35A` | Drug/Narcotic Violations                  | Crimes Against Society  |
+  | `35B` | Drug Equipment Violations                 | Crimes Against Society  |
+  | `36A` | Incest                                    | Crimes Against Persons  |
+  | `36B` | Statutory Rape                            | Crimes Against Persons  |
+  | `370` | Pornography/Obscene Material              | Crimes Against Society  |
+  | `39A` | Betting/Wagering                          | Crimes Against Society  |
+  | `39B` | Operating Gambling Equipment              | Crimes Against Society  |
+  | `39C` | Gambling Equipment Violations             | Crimes Against Society  |
+  | `39D` | Sports Tampering                          | Crimes Against Society  |
+  | `40A` | Prostitution                              | Crimes Against Society  |
+  | `40B` | Assisting/Promoting Prostitution          | Crimes Against Society  |
+  | `40C` | Purchasing Prostitution                   | Crimes Against Society  |
+  | `510` | Bribery                                   | Crimes Against Property |
+  | `520` | Weapon Law Violations                     | Crimes Against Society  |
+  | `64A` | Human Trafficking - Commercial Sex        | Crimes Against Persons  |
+  | `64B` | Human Trafficking - Involuntary Servitude | Crimes Against Persons  |
+  | `720` | Animal Cruelty                            | Crimes Against Society  |
+  | `90A` | Bad Checks                                | Crimes Against Property |
+  | `90B` | Curfew/Loitering Violations               | Crimes Against Society  |
+  | `90C` | Disorderly Conduct                        | Crimes Against Society  |
+  | `90D` | Driving Under the Influence               | Crimes Against Society  |
+  | `90E` | Drunkenness                               | Crimes Against Society  |
+  | `90F` | Family Offenses (Nonviolent)              | Crimes Against Society  |
+  | `90G` | Liquor Law Violations                     | Crimes Against Society  |
+  | `90H` | Peeping Tom                               | Crimes Against Society  |
+  | `90J` | Trespass                                  | Crimes Against Society  |
+  | `90Z` | All Other Offenses                        | Crimes Against Society  |
+
+  ### Location Type Codes
+
+  | Code | Description                         |
+  | ---- | ----------------------------------- |
+  | `01` | Air/Bus/Train Terminal              |
+  | `02` | Bank/Savings and Loan               |
+  | `03` | Bar/Nightclub                       |
+  | `04` | Church/Synagogue/Temple/Mosque      |
+  | `05` | Commercial/Office Building          |
+  | `06` | Construction Site                   |
+  | `07` | Convenience Store                   |
+  | `08` | Department/Discount Store           |
+  | `09` | Drug Store/Doctor's Office/Hospital |
+  | `10` | Field/Woods                         |
+  | `11` | Government/Public Building          |
+  | `12` | Grocery/Supermarket                 |
+  | `13` | Highway/Road/Alley/Street/Sidewalk  |
+  | `14` | Hotel/Motel/Etc.                    |
+  | `15` | Jail/Prison/Penitentiary            |
+  | `16` | Lake/Waterway/Beach                 |
+  | `17` | Liquor Store                        |
+  | `18` | Parking/Drop Lot/Garage             |
+  | `19` | Rental Storage Facility             |
+  | `20` | Residence/Home                      |
+  | `21` | Restaurant                          |
+  | `22` | School/College                      |
+  | `23` | Service/Gas Station                 |
+  | `24` | Specialty Store                     |
+  | `25` | Other/Unknown                       |
+  | `37` | Abandoned/Condemned Structure       |
+  | `38` | Amusement Park                      |
+  | `39` | Arena/Stadium/Fairgrounds           |
+  | `40` | ATM Separate from Bank              |
+  | `41` | Auto Dealership                     |
+  | `42` | Camp/Campground                     |
+  | `44` | Daycare Facility                    |
+  | `45` | Dock/Wharf/Freight Terminal         |
+  | `46` | Farm Facility                       |
+  | `47` | Gambling Facility                   |
+  | `48` | Industrial Site                     |
+  | `49` | Military Installation               |
+  | `50` | Park/Playground                     |
+  | `51` | Rest Area                           |
+  | `52` | School - College/University         |
+  | `53` | School - Elementary/Secondary       |
+  | `54` | Shelter - Mission/Homeless          |
+  | `55` | Shopping Mall                       |
+  | `56` | Tribal Lands                        |
+  | `57` | Community Center                    |
+  | `58` | Cyberspace                          |
+
+  ### Weapon/Force Codes
+
+  | Code | Description                          |
+  | ---- | ------------------------------------ |
+  | `11` | Firearm (Type Unknown)               |
+  | `12` | Handgun                              |
+  | `13` | Rifle                                |
+  | `14` | Shotgun                              |
+  | `15` | Other Firearm                        |
+  | `20` | Knife/Cutting Instrument             |
+  | `30` | Blunt Object                         |
+  | `35` | Motor Vehicle                        |
+  | `40` | Personal Weapons (Hands, Feet, etc.) |
+  | `50` | Poison                               |
+  | `60` | Explosives                           |
+  | `65` | Fire/Incendiary Device               |
+  | `70` | Drugs/Narcotics/Sleeping Pills       |
+  | `85` | Asphyxiation                         |
+  | `90` | Other                                |
+  | `95` | Unknown                              |
+  | `99` | None                                 |
+
+  ### Bias Motivation Codes (Hate Crimes)
+
+  | Code | Description                           |
+  | ---- | ------------------------------------- |
+  | `11` | Anti-White                            |
+  | `12` | Anti-Black                            |
+  | `13` | Anti-American Indian/Alaska Native    |
+  | `14` | Anti-Asian                            |
+  | `15` | Anti-Multi-Racial Group               |
+  | `16` | Anti-Native Hawaiian/Pacific Islander |
+  | `21` | Anti-Jewish                           |
+  | `22` | Anti-Catholic                         |
+  | `23` | Anti-Protestant                       |
+  | `24` | Anti-Islamic                          |
+  | `25` | Anti-Other Religion                   |
+  | `26` | Anti-Multi-Religious Group            |
+  | `27` | Anti-Atheism/Agnosticism              |
+  | `31` | Anti-Arab                             |
+  | `32` | Anti-Hispanic                         |
+  | `33` | Anti-Other Ethnicity                  |
+  | `41` | Anti-Male Homosexual                  |
+  | `42` | Anti-Female Homosexual                |
+  | `43` | Anti-Homosexual (Both)                |
+  | `44` | Anti-Heterosexual                     |
+  | `45` | Anti-Bisexual                         |
+  | `51` | Anti-Physical Disability              |
+  | `52` | Anti-Mental Disability                |
+  | `61` | Anti-Male                             |
+  | `62` | Anti-Female                           |
+  | `71` | Anti-Transgender                      |
+  | `72` | Anti-Gender Non-Conforming            |
+  | `81` | Anti-Eastern Orthodox                 |
+  | `82` | Anti-Other Christian                  |
+  | `83` | Anti-Buddhist                         |
+  | `84` | Anti-Hindu                            |
+  | `85` | Anti-Sikh                             |
+  | `86` | Anti-Jehovah's Witness                |
+  | `87` | Anti-Mormon                           |
+  | `88` | None (No Bias)                        |
+  | `99` | Unknown                               |
+
+  ### Victim-Offender Relationship Codes
+
+  | Code | Description                              |
+  | ---- | ---------------------------------------- |
+  | `SE` | Victim was Spouse                        |
+  | `CS` | Victim was Common-Law Spouse             |
+  | `PA` | Victim was Parent                        |
+  | `SB` | Victim was Sibling                       |
+  | `CH` | Victim was Child                         |
+  | `GP` | Victim was Grandparent                   |
+  | `GC` | Victim was Grandchild                    |
+  | `IL` | Victim was In-Law                        |
+  | `SP` | Victim was Stepparent                    |
+  | `SC` | Victim was Stepchild                     |
+  | `SS` | Victim was Stepsibling                   |
+  | `OF` | Victim was Other Family Member           |
+  | `BG` | Victim was Boyfriend/Girlfriend          |
+  | `CF` | Victim was Child of Boyfriend/Girlfriend |
+  | `HR` | Homosexual Relationship                  |
+  | `XS` | Victim was Ex-Spouse                     |
+  | `EE` | Victim was Employee                      |
+  | `ER` | Victim was Employer                      |
+  | `FR` | Victim was Friend                        |
+  | `NE` | Victim was Neighbor                      |
+  | `AQ` | Victim was Acquaintance                  |
+  | `OK` | Victim was Otherwise Known               |
+  | `RU` | Relationship Unknown                     |
+  | `ST` | Victim was Stranger                      |
+  | `VO` | Victim was Offender                      |
+
+  ---
+
+  ## Common Query Patterns
+
+  ### Join Pattern
+
+  Always join tables on `ori` AND `incident_number` for incident-level analysis:
+
+  ```sql
+  SELECT ...
+  FROM administrative_segment a
+  JOIN offense_segment o
+  ON a.ori = o.ori AND a.incident_number = o.incident_number
+  JOIN agencies ag ON a.ori = ag.ori
+  ```
+
+  ### Filter by Year
+
+  ```sql
+  WHERE data_year = 2024
+  ```
+
+  ### Filter by State
+
+  ```sql
+  JOIN agencies ag ON a.ori = ag.ori
+  WHERE ag.state_abbr = 'CA'
+  ```
+
+  ### Count Distinct Incidents
+
+  ```sql
+  COUNT(DISTINCT CONCAT(ori, '-', incident_number)) as incident_count
+  ```
+
+  ---
+
+  ## Example Queries
+
+  ### Homicides by State (2024)
+
+  ```sql
+  SELECT
+  ag.state_name,
+  COUNT(*) as homicides
+  FROM offense_segment o
+  JOIN agencies ag ON o.ori = ag.ori
+  WHERE o.ucr_offense_code = '09A'
+  AND o.data_year = 2024
+  GROUP BY 1
+  ORDER BY 2 DESC
+  ```
+
+  ### Hate Crimes by Bias Type
+
+  ```sql
+  SELECT
+  o.bias_motivation,
+  COUNT(*) as incidents
+  FROM offense_segment o
+  WHERE o.bias_motivation != '88'  -- Exclude "No Bias"
+  AND o.data_year = 2024
+  GROUP BY 1
+  ORDER BY 2 DESC
+  ```
+
+  ### Crime Location Analysis
+
+  ```sql
+  SELECT
+  o.location_type,
+  COUNT(*) as offenses
+  FROM offense_segment o
+  WHERE o.data_year = 2024
+  GROUP BY 1
+  ORDER BY 2 DESC
+  LIMIT 20
+  ```
+
+  ### Victim Demographics for Violent Crimes
+
+  ```sql
+  SELECT
+  v.sex_of_victim,
+  v.race_of_victim,
+  COUNT(*) as victim_count
+  FROM victim_segment v
+  WHERE v.ucr_offense_code1 IN ('09A', '11A', '120', '13A')
+  AND v.type_of_victim = 'I'  -- Individual victims only
+  AND v.data_year = 2024
+  GROUP BY 1, 2
+  ORDER BY 3 DESC
+  ```
+
+  ### Arrest Rate by Offense Type
+
+  ```sql
+  WITH incidents AS (
+  SELECT
+  o.ucr_offense_code,
+  COUNT(DISTINCT CONCAT(o.ori, '-', o.incident_number)) as total_incidents
+  FROM offense_segment o
+  WHERE o.data_year = 2024
+  GROUP BY 1
+  ),
+  arrests AS (
+  SELECT
+  ar.ucr_arrest_offense_code,
+  COUNT(*) as total_arrests
+  FROM arrestee_segment ar
+  WHERE ar.data_year = 2024
+  GROUP BY 1
+  )
+  SELECT
+  i.ucr_offense_code,
+  i.total_incidents,
+  COALESCE(a.total_arrests, 0) as total_arrests,
+  ROUND(COALESCE(a.total_arrests, 0) * 100.0 / i.total_incidents, 2) as arrest_rate_pct
+  FROM incidents i
+  LEFT JOIN arrests a ON i.ucr_offense_code = a.ucr_arrest_offense_code
+  ORDER BY i.total_incidents DESC
+  LIMIT 20
+  ```
+
+  # NIBRS Crime Data - BigQuery Schema
+
+  You have access to FBI NIBRS (National Incident-Based Reporting System) crime data in BigQuery. Use this schema to write SQL queries.
+
+  ## Dataset: `daemo-daemon-testing.nibrs_data`
+
+  ---
+
+  ## Tables
+
+  ### `agencies`
+
+  Reference table for law enforcement agencies. **Join on `ori` field.**
+
+  | Column      | Type   | Description                                                    |
+  | ----------- | ------ | -------------------------------------------------------------- |
+  | ori         | STRING | Primary key. 9-character agency identifier (e.g., 'CA0010100') |
+  | agency_name | STRING | Full agency name (e.g., 'Los Angeles Police Department')       |
+  | city_name   | STRING | City where agency is located                                   |
+  | state_abbr  | STRING | Two-letter state code (e.g., 'CA')                             |
+  | state_code  | STRING | Two-digit numeric state FIPS code                              |
+  | county_code | STRING | County FIPS code                                               |
+  | population  | STRING | Population served by agency (cast to INT64 for calculations)   |
+  | msa_code    | STRING | Metropolitan Statistical Area code                             |
+
+  ### `administrative_segment`
+
+  One row per crime incident. Primary incident-level table.
+
+  | Column                  | Type   | Description                                                         |
+  | ----------------------- | ------ | ------------------------------------------------------------------- |
+  | ori                     | STRING | FK → agencies.ori                                                   |
+  | incident_number         | STRING | Agency case number (unique within agency)                           |
+  | incident_date           | DATE   | Date incident occurred                                              |
+  | incident_date_hour      | INT64  | Hour of day (0-23)                                                  |
+  | data_year               | INT64  | Year reported (2020-2025)                                           |
+  | total_offense_segments  | INT64  | Number of offenses                                                  |
+  | total_victim_segments   | INT64  | Number of victims                                                   |
+  | total_offender_segments | INT64  | Number of offenders                                                 |
+  | total_arrestee_segments | INT64  | Number of arrestees                                                 |
+  | cleared_exceptionally   | STRING | 'A'=Death of Offender, 'B'=Prosecution Declined, 'N'=Not Applicable |
+
+  ### `offense_segment`
+
+  One row per offense. An incident can have multiple offenses.
+
+  | Column                         | Type   | Description                      |
+  | ------------------------------ | ------ | -------------------------------- |
+  | ori                            | STRING | FK → agencies.ori                |
+  | incident_number                | STRING | Links to administrative_segment  |
+  | incident_date                  | DATE   | Date incident occurred           |
+  | data_year                      | INT64  | Year reported                    |
+  | ucr_offense_code               | STRING | FBI offense code (see below)     |
+  | offense_attempted_or_completed | STRING | 'A'=Attempted, 'C'=Completed     |
+  | location_type                  | STRING | Two-digit location code          |
+  | bias_motivation                | STRING | Hate crime bias code ('88'=None) |
+  | type_weapon_force_involved1    | STRING | Weapon code                      |
+
+  ### `victim_segment`
+
+  One row per victim.
+
+  | Column                 | Type   | Description                                               |
+  | ---------------------- | ------ | --------------------------------------------------------- |
+  | ori                    | STRING | FK → agencies.ori                                         |
+  | incident_number        | STRING | Links to administrative_segment                           |
+  | incident_date          | DATE   | Date incident occurred                                    |
+  | data_year              | INT64  | Year reported                                             |
+  | victim_sequence_number | INT64  | Victim number (1, 2, 3...)                                |
+  | type_of_victim         | STRING | 'I'=Individual, 'B'=Business, 'L'=Law Enforcement Officer |
+  | age_of_victim          | STRING | Age ('01'-'99', 'NB'=Newborn)                             |
+  | sex_of_victim          | STRING | 'M'=Male, 'F'=Female, 'U'=Unknown                         |
+  | race_of_victim         | STRING | 'W'=White, 'B'=Black, 'A'=Asian, 'I'=Native American      |
+  | ucr_offense_code1      | STRING | Primary offense affecting victim                          |
+
+  ### `arrestee_segment`
+
+  One row per arrestee.
+
+  | Column                  | Type   | Description                                       |
+  | ----------------------- | ------ | ------------------------------------------------- |
+  | ori                     | STRING | FK → agencies.ori                                 |
+  | incident_number         | STRING | Links to administrative_segment                   |
+  | arrest_date             | DATE   | Date of arrest                                    |
+  | data_year               | INT64  | Year reported                                     |
+  | ucr_arrest_offense_code | STRING | Offense code for arrest                           |
+  | age_of_arrestee         | STRING | Age                                               |
+  | sex_of_arrestee         | STRING | 'M', 'F', 'U'                                     |
+  | race_of_arrestee        | STRING | Race code                                         |
+  | type_of_arrest          | STRING | 'O'=On-View, 'S'=Summoned, 'T'=Taken Into Custody |
+
+  ---
+
+  ## Key UCR Offense Codes
+
+  | Code | Description                        |
+  | ---- | ---------------------------------- |
+  | 09A  | Murder & Nonnegligent Manslaughter |
+  | 09B  | Negligent Manslaughter             |
+  | 11A  | Rape                               |
+  | 120  | Robbery                            |
+  | 13A  | Aggravated Assault                 |
+  | 13B  | Simple Assault                     |
+  | 220  | Burglary                           |
+  | 23H  | Larceny/Theft (All Other)          |
+  | 240  | Motor Vehicle Theft                |
+  | 290  | Vandalism                          |
+  | 35A  | Drug Violations                    |
+  | 520  | Weapon Law Violations              |
+
+  ---
+
+  ## Common Query Patterns
+
+  ### Join tables on ori AND incident_number:
+
+  ```sql
+  FROM administrative_segment a
+  JOIN offense_segment o ON a.ori = o.ori AND a.incident_number = o.incident_number
+  JOIN agencies ag ON a.ori = ag.ori
+  ```
+
+  ### Filter by year:
+
+  ```sql
+  WHERE data_year = 2024
+  ```
+
+  ### Filter by state:
+
+  ```sql
+  JOIN agencies ag ON o.ori = ag.ori
+  WHERE ag.state_abbr = 'CA'
+  ```
+
+  ### Count distinct incidents:
+
+  ```sql
+  COUNT(DISTINCT CONCAT(ori, '-', incident_number)) as incident_count
+  ```
+
+  ### Calculate crime rate per 100k:
+
+  ```sql
+  COUNT(*) * 100000.0 / MAX(CAST(ag.population AS INT64)) as rate_per_100k
+  ```
+
+  ---
+
+  ## Example Queries
+
+  ### Homicides by State
+
+  ```sql
+  SELECT ag.state_abbr, COUNT(*) as homicides
+  FROM nibrs_data.offense_segment o
+  JOIN nibrs_data.agencies ag ON o.ori = ag.ori
+  WHERE o.ucr_offense_code = '09A' AND o.data_year = 2024
+  GROUP BY 1 ORDER BY 2 DESC
+  ```
+
+  ### Crime Rate by Agency
+
+  ```sql
+  SELECT
+  ag.agency_name,
+  ag.state_abbr,
+  COUNT(*) as crimes,
+  CAST(ag.population AS INT64) as population,
+  ROUND(COUNT(*) * 100000.0 / CAST(ag.population AS INT64), 2) as rate_per_100k
+  FROM nibrs_data.offense_segment o
+  JOIN nibrs_data.agencies ag ON o.ori = ag.ori
+  WHERE o.data_year = 2024 AND CAST(ag.population AS INT64) > 100000
+  GROUP BY 1, 2, 4
+  ORDER BY 5 DESC
+  LIMIT 20
+  ```
+
+  ### Victim Demographics
+
+  ```sql
+  SELECT sex_of_victim, race_of_victim, COUNT(*) as count
+  FROM nibrs_data.victim_segment
+  WHERE type_of_victim = 'I' AND data_year = 2024
+  GROUP BY 1, 2 ORDER BY 3 DESC
+  ```
+
+  And here are the first 10 rows for each table in the database:
+
+  ```sql
+  SELECT *
+  FROM `daemo-daemon-testing.nibrs_data.administrative_segment`
+  LIMIT 10
+  ```
+
+  segment_level state_code ori incident_number incident_date report_date_indicator incident_date_hour total_offense_segments total_victim_segments total_offender_segments total_arrestee_segments city_submission
+  cleared_exceptionally exceptional_clearance_date data_year db_id
+  1 50 AK0010500 UG-W84JHSCTD 2020-11-07 15 1 1 2 0 N 2020 2020_53
+  1 1 AL0010000 2W2HPU72JLKD 2020-01-18 13 1 1 1 0 N 2020 2020_82
+  1 1 AL0010700 8N2URD0W32AU 2020-05-20 R 0 1 1 1 0 N 2020 2020_486
+  1 1 AL0011200 7N6HVARLZITJ 2020-05-01 12 1 1 1 0 N 2020 2020_3862
+  1 1 AL0011200 2W2HPU7NSX6I 2020-07-25 13 1 2 3 2 N 2020 2020_1998
+  1 1 AL0011200 2W2HPU7V8CKI 2020-08-08 20 1 1 1 0 D 2020 2020_3129
+  1 1 AL0011200 2W2HPU7OU6B 2020-09-26 17 1 1 1 1 N 2020 2020_2339
+  1 1 AL0011200 2W2HPU7LLXJD 2020-10-29 3 1 1 1 0 N 2020 2020_1693
+  1 1 AL0011200 2W2HPU7Z9C2X 2020-03-03 18 1 1 1 1 N 2020 2020_3539
+  1 1 AL0011200 2W2HPU7NJG X 2020-07-18 20 1 1 3 0 N 2020 2020_1927
+
+  ```sql
+  SELECT *
+  FROM `daemo-daemon-testing.nibrs_data.agencies`
+  LIMIT 10
+  ```
+
+  ori counties is_nibrs latitude longitude state_abbr state_name agency_name agency_type_name nibrs_start_date
+  AL0032500 MONTGOMERY true AL Alabama "Department of Conservation, Montgomery" Other State Agency 2020-11-01
+  AL0080800 BLOUNT true AL Alabama Hayden Police Department City 2021-01-01
+  AL0460400 MACON true AL Alabama Franklin Police Department City 2021-01-01
+  AL0620800 TALLAPOOSA true AL Alabama Central Alabama Community College University or College 2022-09-01
+  AL052015A MORGAN false AL Alabama District Attorney: 8th Circuit Other
+  AL0501100 MARSHALL true AL Alabama Snead State Community College University or College 2023-04-01
+  AL0230900 COVINGTON true AL Alabama Lurleen B. Wallace Community College University or College 2021-09-01
+  AL0530400 PERRY true AL Alabama Marion Military Institute University or College 2023-01-01
+  AL054015A PICKENS true AL Alabama District Attorney: 24th Circuit Other 2012-10-01
+  AL0033100 NOT SPECIFIED true AL Alabama Alabama Drug Enforcement Task Force Other State Agency 2021-03-01
+
+  ```sql
+  SELECT *
+  FROM `daemo-daemon-testing.nibrs_data.arrestee_segment`
+  LIMIT 10
+  ```
+
+  segment_level state_code ori incident_number incident_date arrestee_sequence_number arrest_transaction_number arrest_date type_of_arrest multiple_arrestee_segment_indicator ucr_arrest_offense_code type_weapon_involved1
+  automatic_weapon_indicator1 type_weapon_involved2 automatic_weapon_indicator2 age_of_arrestee sex_of_arrestee race_of_arrestee ethnicity_of_arrestee residence_status_of_arrestee disposition_arrestee_under_18 data_year db_id
+  6 50 AK0012200 HQ2HPUXVZ21A 2020-12-17 1 117517212 2021-01-18 T N 220 1 42 M W R 2020 2020_12
+  6 1 AL0010500 QNAYTGDAEX 4 2020-05-02 1 BA9136BA19D5 2020-05-02 S N 35A 1 39 M B N N 2020 2020_79
+  6 1 AL0010900 DN4YBNI96HM5 2020-05-06 1 6BFB82A690B5 2020-05-06 O N 35A 12 29 M B N N 2020 2020_142
+  6 1 AL0011200 2W2HPU7367TI 2020-02-23 1 6638 2020-02-23 O M 23C 1 42 M W N N 2020 2020_283
+  6 1 AL0011200 2W2HPU73SLBI 2020-02-19 1 6594 2020-02-19 O C 35A 1 43 M W N N 2020 2020_347
+  6 1 AL0011200 2W2HPU7L972W 2020-10-24 1 8000 2020-10-24 O C 35A 16 21 M B N N 2020 2020_442
+  6 1 AL0011200 2W2HPU7 S6J8 2020-06-11 1 7153 2020-06-11 O C 13B 16 30 F U N R 2020 2020_698
+  6 1 AL0011200 2W2HPU7PSCKN 2020-05-04 1 6946 2020-05-04 O C 13B 17 29 F B N N 2020 2020_676
+  6 1 AL0011200 2W2HPU73J70X 2020-02-14 1 6565 2020-02-14 O C 23C 1 29 M B N N 2020 2020_318
+  6 1 AL0011200 2W2HPU7O6GB4 2020-10-13 1 7921 2020-10-13 O C 23C 1 18 M W N R 2020 2020_555
+
+  ```sql
+  SELECT *
+  FROM `daemo-daemon-testing.nibrs_data.offense_segment`
+  LIMIT 10
+  ```
+
+  segment_level state_code ori incident_number incident_date ucr_offense_code offense_attempted_or_completed offender_suspected_of_using1 offender_suspected_of_using2 offender_suspected_of_using3 location_type num_premises_entered
+  method_of_entry type_of_criminal_activity1 type_of_criminal_activity2 type_of_criminal_activity3 type_weapon_force_involved1 automatic_weapon_indicator1 type_weapon_force_involved2 automatic_weapon_indicator2
+  type_weapon_force_involved3 automatic_weapon_indicator3 bias_motivation data_year db_id
+  2 1 AL0010200 V-6QXTJIBB0W 2023-09-30 09A C N 18 11.0 88 2023 2023_52889
+  2 1 AL0010200 U302O-JYLGST 2022-12-19 09A C N 20 11.0 A 88 2022 2022_52325
+  2 1 AL0010200 FCC8P0YQPCUC 2025-12-06 09A C N 20 N 11.0 A 88 2025 2025_34644
+  2 1 AL0010200 S0882Q-Y5K G 2021-08-05 09A C N 20 12.0 A 99 2021 2021_44614
+  2 1 AL0010200 T00498I-K7PL 2021-09-10 09A C N 20 95.0 88 2021 2021_45130
+  2 1 AL0010200 GW1B8NPN3N8J 2023-12-10 09A C N 3 12.0 A 88 2023 2023_43788
+  2 1 AL0010200 YGEMFGCFCXQJ 2025-07-22 09A C N 13 13.0 88 2025 2025_46073
+  2 1 AL0020100 6X4D B6ESZ-D 2024-05-17 09A C N 25 N 11.0 88 2024 2024_70248
+  2 1 AL0030100 I3DHVUK4PP06 2024-07-01 09A C N 25 11.0 88 2024 2024_91836
+  2 1 AL0270000 8M5E8N6234WL 2023-03-25 09A C N 20 12.0 88 2023 2023_149299
+
+  ```sql
+  SELECT *
+  FROM `daemo-daemon-testing.nibrs_data.victim_segment`
+  LIMIT 10
+  ```
+
+  segment_level state_code ori incident_number incident_date victim_sequence_number ucr_offense_code1 ucr_offense_code2 ucr_offense_code3 ucr_offense_code4 ucr_offense_code5 ucr_offense_code6 ucr_offense_code7 ucr_offense_code8
+  ucr_offense_code9 ucr_offense_code10 type_of_victim age_of_victim sex_of_victim race_of_victim ethnicity_of_victim residence_status_of_victim agg_assault_homicide_circumstance1 agg_assault_homicide_circumstance2
+  additional_justifiable_homicide_circumstance type_of_injury1 type_of_injury2 type_of_injury3 type_of_injury4 type_of_injury5 offender_sequence_number victim_relationship_to_offender1 victim_relationship_to_offender2
+  victim_relationship_to_offender3 victim_relationship_to_offender4 victim_relationship_to_offender5 victim_relationship_to_offender6 victim_relationship_to_offender7 victim_relationship_to_offender8
+  victim_relationship_to_offender9 victim_relationship_to_offender10 data_year db_id
+  4 42 TXHPD0000 37418GZ42SCT 2025-06-28 1 120 B 2025 2025_10691537
+  4 21 MI2583900 P-23NGWP-Z2Z 2023-06-21 2 120 B 2023 2023_5625241
+  4 4 CA0500200 0K2B4IA6RO39 2024-11-09 2 120 B 2024 2024_1945926
+  4 36 OR0260200 2H-WWKR2TD1A 2025-04-11 2 120 B 2025 2025_8431921
+  4 12 ILCPD0000 W4XKBBMF39G 2021-12-09 3 120 B 2021 2021_2870721
+  4 4 CA0030000 CE0QRF3R728N 2024-04-02 2 120 B 2024 2024_756646
+  4 1 AL0010200 3N76T9NFR5RV 2025-07-10 2 120 B 2025 2025_24826
+  4 32 NC0600100 2904QH7OJXJ4 2023-08-19 2 120 B 2023 2023_7086868
+  4 46 WA0173700 UT0BAW5DQ28N 2020-08-24 1 120 B 2020 2020_8395605
+  4 10 GA0570200 CT0QIF3U728N 2022-06-12 3 120 B 2022 2022_2823948
+
+  Remember that the blank spaces represent nulls in the tables above. Anyways, update the functions in the agent so that it can answer all of the following questions (or at least as many as possible):
+
+  -====-
+  Finally, it seems like many of these questions need population data which the DB does not have. Figure out some way that the agent is able to get population statistics that it can use for per-capita analysis as well.
