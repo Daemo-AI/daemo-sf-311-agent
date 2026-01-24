@@ -16,7 +16,7 @@ Reference table for law enforcement agencies. **Join on \`ori\` field.**
 | agency_name | STRING  | Full agency name (e.g., 'Los Angeles Police Department')       |
 | city_name   | STRING  | City where agency is located                                   |
 | state_abbr  | STRING  | Two-letter state code (e.g., 'CA')                             |
-| state_code  | STRING  | Two-digit numeric state FIPS code                              |
+| state_name  | STRING  | Name of state                                                  |
 | county_code | STRING  | County FIPS code                                               |
 | population  | STRING  | Population served by agency (cast to INT64 for calculations)   |
 | msa_code    | STRING  | Metropolitan Statistical Area code                             |
@@ -26,6 +26,11 @@ Reference table for law enforcement agencies. **Join on \`ori\` field.**
 
 - **To filter by state:** Use \`WHERE state_abbr = 'TX'\` (abbreviation) OR \`WHERE state_name = 'Texas'\` (full name)
 - **NEVER use:** \`WHERE state = ...\` (this column does not exist)
+
+SELECT ori, agency_name, city_name, state_abbr, county_code, population, msa_code, is_nibrs
+FROM
+`daemo-daemon-testing.nibrs_data.agencies`
+LIMIT 2;
 
 **Example rows:**
 \`\`\`
