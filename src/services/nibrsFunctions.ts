@@ -88,11 +88,11 @@ export class NIBRSCrimeFunctions {
     outputSchema: CustomQueryOutput,
   })
   async executeCustomQuery(input: z.infer<typeof ExecuteCustomQueryInput>) {
-    // Security: Only allow SELECT queries
+    // Security: Only allow SELECT queries (including CTEs with WITH)
     const sqlTrimmed = input.sql.trim().toUpperCase();
-    if (!sqlTrimmed.startsWith("SELECT")) {
+    if (!sqlTrimmed.startsWith("SELECT") && !sqlTrimmed.startsWith("WITH")) {
       throw new Error(
-        "Only SELECT queries are allowed. Query must start with SELECT.",
+        "Only SELECT queries are allowed. Query must start with SELECT or WITH (for CTEs).",
       );
     }
 
@@ -176,7 +176,7 @@ export class NIBRSCrimeFunctions {
         longitude,
         is_nibrs,
         CAST(nibrs_start_date AS STRING) as nibrs_start_date
-      FROM agencies
+      FROM \`${PROJECT_ID}.${DATASET}.agencies\`
       WHERE 1=1
     `;
 
@@ -274,8 +274,8 @@ export class NIBRSCrimeFunctions {
       SELECT
         ${selectFields},
         COUNT(DISTINCT CONCAT(o.ori, '-', o.incident_number)) as incident_count
-      FROM offense_segment o
-      JOIN agencies ag ON o.ori = ag.ori
+      FROM \`${PROJECT_ID}.${DATASET}.offense_segment\` o
+      JOIN \`${PROJECT_ID}.${DATASET}.agencies\` ag ON o.ori = ag.ori
       WHERE o.data_year BETWEEN ${fromYear} AND ${toYear}
     `;
 
@@ -336,8 +336,8 @@ export class NIBRSCrimeFunctions {
       SELECT
         ${selectFields},
         COUNT(DISTINCT CONCAT(o.ori, '-', o.incident_number)) as count
-      FROM offense_segment o
-      JOIN agencies ag ON o.ori = ag.ori
+      FROM \`${PROJECT_ID}.${DATASET}.offense_segment\` o
+      JOIN \`${PROJECT_ID}.${DATASET}.agencies\` ag ON o.ori = ag.ori
       WHERE o.data_year BETWEEN ${input.fromYear} AND ${input.toYear}
     `;
 
@@ -422,8 +422,8 @@ export class NIBRSCrimeFunctions {
       SELECT
         ${selectFields},
         COUNT(*) as offense_count
-      FROM offense_segment o
-      JOIN agencies ag ON o.ori = ag.ori
+      FROM \`${PROJECT_ID}.${DATASET}.offense_segment\` o
+      JOIN \`${PROJECT_ID}.${DATASET}.agencies\` ag ON o.ori = ag.ori
       WHERE o.data_year BETWEEN ${fromYear} AND ${toYear}
     `;
 
@@ -503,8 +503,8 @@ export class NIBRSCrimeFunctions {
         groupByFields = "population_category";
         break;
       case "state":
-        selectFields = "ag.state_abbr";
-        groupByFields = "ag.state_abbr";
+        selectFields = "ag.state_abbr, ag.state_name";
+        groupByFields = "ag.state_abbr, ag.state_name";
         break;
       case "offense":
         selectFields = "o.ucr_offense_code";
@@ -525,10 +525,10 @@ export class NIBRSCrimeFunctions {
         COUNT(*) as offense_count,
         SUM(le.population) as total_population,
         ROUND((COUNT(*) * 100000.0) / SUM(le.population), 2) as rate_per_100k
-      FROM offense_segment o
-      JOIN law_enforcement_employees le
+      FROM \`${PROJECT_ID}.${DATASET}.offense_segment\` o
+      JOIN \`${PROJECT_ID}.${DATASET}.law_enforcement_employees\` le
         ON o.ori = le.ori AND o.data_year = le.data_year
-      JOIN agencies ag ON o.ori = ag.ori
+      JOIN \`${PROJECT_ID}.${DATASET}.agencies\` ag ON o.ori = ag.ori
       WHERE o.data_year BETWEEN ${fromYear} AND ${toYear}
         AND le.population IS NOT NULL
         AND le.population > 0

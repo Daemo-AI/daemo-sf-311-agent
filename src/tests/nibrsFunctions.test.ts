@@ -57,6 +57,15 @@ describe("NIBRSCrimeFunctions", () => {
           sql: "DROP TABLE agencies",
           limit: 10,
         })
+      ).rejects.toThrow("Only SELECT queries are allowed");
+    });
+
+    test("should reject queries with DROP in SELECT", async () => {
+      await expect(
+        functions.executeCustomQuery({
+          sql: "SELECT * FROM agencies; DROP TABLE agencies;",
+          limit: 10,
+        })
       ).rejects.toThrow("forbidden keyword: DROP");
     });
 
@@ -271,6 +280,114 @@ describe("NIBRSCrimeFunctions", () => {
       agencyResult.results.forEach((row, idx) => {
         console.log(`  ${idx + 1}. ${row.agency_name}: ${row.incident_count} incidents`);
       });
+    });
+
+    // === CTE (WITH) QUERY TESTS ===
+
+    test("should support CTE (WITH clause) queries", async () => {
+      const result = await functions.executeCustomQuery({
+        sql: `
+          WITH crime_counts AS (
+            SELECT ucr_offense_code, COUNT(*) as count
+            FROM offense_segment
+            WHERE data_year = 2024
+            GROUP BY ucr_offense_code
+          )
+          SELECT * FROM crime_counts ORDER BY count DESC LIMIT 5
+        `,
+        limit: 5,
+      });
+
+      expect(result.row_count).toBe(5);
+      expect(result.results[0]).toHaveProperty("ucr_offense_code");
+      expect(result.results[0]).toHaveProperty("count");
+    });
+
+    test("should execute single CTE query to answer: CT agencies sorted by most common crime", async () => {
+      // This is the EXACT query the agent should be able to generate
+      // to answer: "List all agencies in CT, sorted by most common crime statewide"
+      const result = await functions.executeCustomQuery({
+        sql: `
+          WITH most_common_crime AS (
+            SELECT ucr_offense_code
+            FROM offense_segment o
+            JOIN agencies ag ON o.ori = ag.ori
+            WHERE ag.state_abbr = 'CT' AND o.data_year = 2024
+            GROUP BY ucr_offense_code
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+          )
+          SELECT
+            ag.agency_name,
+            ag.state_abbr,
+            mcc.ucr_offense_code as most_common_offense,
+            COUNT(DISTINCT CONCAT(o.ori, '-', o.incident_number)) as incident_count
+          FROM offense_segment o
+          JOIN agencies ag ON o.ori = ag.ori
+          CROSS JOIN most_common_crime mcc
+          WHERE ag.state_abbr = 'CT'
+            AND o.ucr_offense_code = mcc.ucr_offense_code
+            AND o.data_year = 2024
+          GROUP BY ag.agency_name, ag.state_abbr, mcc.ucr_offense_code
+          ORDER BY incident_count DESC
+          LIMIT 10
+        `,
+        limit: 10,
+      });
+
+      // Verify the query returns expected results
+      expect(result.row_count).toBe(10);
+      expect(result.results[0]).toHaveProperty("agency_name");
+      expect(result.results[0]).toHaveProperty("most_common_offense");
+      expect(result.results[0]).toHaveProperty("incident_count");
+      expect(result.results[0].state_abbr).toBe("CT");
+      // The most common offense should be 290 (Destruction/Damage/Vandalism)
+      expect(result.results[0].most_common_offense).toBe("290");
+
+      // Verify descending order
+      for (let i = 1; i < result.results.length; i++) {
+        expect(result.results[i - 1].incident_count).toBeGreaterThanOrEqual(
+          result.results[i].incident_count
+        );
+      }
+
+      console.log("=== SINGLE CTE QUERY RESULTS ===");
+      console.log("Query: 'List all CT agencies sorted by most common crime (290)'");
+      result.results.forEach((row, idx) => {
+        console.log(`  ${idx + 1}. ${row.agency_name}: ${row.incident_count} incidents for offense ${row.most_common_offense}`);
+      });
+    });
+
+    // === EDGE CASES ===
+
+    test("should handle queries with multiple joins", async () => {
+      const result = await functions.executeCustomQuery({
+        sql: `
+          SELECT
+            ag.agency_name,
+            ag.state_abbr,
+            le.population,
+            COUNT(*) as offense_count,
+            ROUND((COUNT(*) * 100000.0) / le.population, 2) as rate_per_100k
+          FROM offense_segment o
+          JOIN agencies ag ON o.ori = ag.ori
+          JOIN law_enforcement_employees le ON o.ori = le.ori AND o.data_year = le.data_year
+          WHERE o.data_year = 2024
+            AND ag.state_abbr = 'CT'
+            AND le.population IS NOT NULL
+            AND le.population > 50000
+          GROUP BY ag.agency_name, ag.state_abbr, le.population
+          ORDER BY rate_per_100k DESC
+          LIMIT 5
+        `,
+        limit: 5,
+      });
+
+      expect(result.row_count).toBeGreaterThan(0);
+      expect(result.results[0]).toHaveProperty("agency_name");
+      expect(result.results[0]).toHaveProperty("population");
+      expect(result.results[0]).toHaveProperty("rate_per_100k");
+      console.log("Top CT agencies by crime rate per 100k (pop > 50k):", result.results);
     });
   });
 });
