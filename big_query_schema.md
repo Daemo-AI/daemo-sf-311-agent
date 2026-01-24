@@ -10,19 +10,20 @@
 
 Reference table for law enforcement agencies. **Join on \`ori\` field.**
 
-| Column      | Type   | Description                                                    |
-| ----------- | ------ | -------------------------------------------------------------- |
-| ori         | STRING | Primary key. 9-character agency identifier (e.g., 'CA0010100') |
-| agency_name | STRING | Full agency name (e.g., 'Los Angeles Police Department')       |
-| city_name   | STRING | City where agency is located                                   |
-| state_abbr  | STRING | Two-letter state code (e.g., 'CA')                             |
-| state_code  | STRING | Two-digit numeric state FIPS code                              |
-| county_code | STRING | County FIPS code                                               |
-| population  | STRING | Population served by agency (cast to INT64 for calculations)   |
-| msa_code    | STRING | Metropolitan Statistical Area code                             |
-| is_nibrs    | BOOLEAN | Whether agency participates in NIBRS reporting                |
+| Column      | Type    | Description                                                    |
+| ----------- | ------- | -------------------------------------------------------------- |
+| ori         | STRING  | Primary key. 9-character agency identifier (e.g., 'CA0010100') |
+| agency_name | STRING  | Full agency name (e.g., 'Los Angeles Police Department')       |
+| city_name   | STRING  | City where agency is located                                   |
+| state_abbr  | STRING  | Two-letter state code (e.g., 'CA')                             |
+| state_code  | STRING  | Two-digit numeric state FIPS code                              |
+| county_code | STRING  | County FIPS code                                               |
+| population  | STRING  | Population served by agency (cast to INT64 for calculations)   |
+| msa_code    | STRING  | Metropolitan Statistical Area code                             |
+| is_nibrs    | BOOLEAN | Whether agency participates in NIBRS reporting                 |
 
 **Important Notes:**
+
 - **To filter by state:** Use \`WHERE state_abbr = 'TX'\` (abbreviation) OR \`WHERE state_name = 'Texas'\` (full name)
 - **NEVER use:** \`WHERE state = ...\` (this column does not exist)
 
@@ -60,19 +61,19 @@ ori: AL0010000 | incident_number: 2W2HPU72JLKD | incident_date: 2020-01-18 | inc
 
 One row per offense. An incident can have multiple offenses.
 
-| Column                         | Type   | Description                                             |
-| ------------------------------ | ------ | ------------------------------------------------------- |
-| ori                            | STRING | FK → agencies.ori                                       |
-| incident_number                | STRING | Links to administrative_segment                         |
-| incident_date                  | DATE   | Date incident occurred                                  |
-| data_year                      | INT64  | Year reported                                           |
-| ucr_offense_code               | STRING | FBI offense code (see UCR codes below)                  |
-| offense_attempted_or_completed | STRING | 'A'=Attempted, 'C'=Completed                            |
-| location_type                  | STRING | Two-digit location code                                 |
-| bias_motivation                | STRING | Hate crime bias code ('88'=None)                        |
-| type_weapon_force_involved1    | STRING | Primary weapon code ('11'=Firearm, '12'=Handgun, etc.)  |
-| type_weapon_force_involved2    | STRING | Secondary weapon code (if applicable)                   |
-| type_weapon_force_involved3    | STRING | Tertiary weapon code (if applicable)                    |
+| Column                         | Type   | Description                                            |
+| ------------------------------ | ------ | ------------------------------------------------------ |
+| ori                            | STRING | FK → agencies.ori                                      |
+| incident_number                | STRING | Links to administrative_segment                        |
+| incident_date                  | DATE   | Date incident occurred                                 |
+| data_year                      | INT64  | Year reported                                          |
+| ucr_offense_code               | STRING | FBI offense code (see UCR codes below)                 |
+| offense_attempted_or_completed | STRING | 'A'=Attempted, 'C'=Completed                           |
+| location_type                  | STRING | Two-digit location code                                |
+| bias_motivation                | STRING | Hate crime bias code ('88'=None)                       |
+| type_weapon_force_involved1    | STRING | Primary weapon code ('11'=Firearm, '12'=Handgun, etc.) |
+| type_weapon_force_involved2    | STRING | Secondary weapon code (if applicable)                  |
+| type_weapon_force_involved3    | STRING | Tertiary weapon code (if applicable)                   |
 
 **Example rows:**
 \`\`\`
@@ -129,20 +130,21 @@ ori: AL0010500 | incident_number: QNAYTGDAEX4 | arrest_date: 2020-05-02 | ucr_ar
 
 FBI Law Enforcement Employees dataset with year-specific population data for agencies.
 
-| Column                 | Type    | Description                                                    |
-| ---------------------- | ------- | -------------------------------------------------------------- |
-| data_year              | INTEGER | Year of data (2015-2024)                                       |
-| ori                    | STRING  | Agency identifier (9 characters) - FK to agencies.ori          |
-| pub_agency_name        | STRING  | Official agency name                                           |
-| state_abbr             | STRING  | Two-letter state code                                          |
-| population             | INTEGER | **Population served by agency** (INTEGER - no casting needed!) |
-| population_group_desc  | STRING  | FBI's official population category                             |
-| county_name            | STRING  | County where agency is located                                 |
-| agency_type_name       | STRING  | Type of agency (City, County, State, etc.)                     |
-| officer_ct             | INTEGER | Number of sworn officers                                       |
-| civilian_ct            | INTEGER | Number of civilian employees                                   |
+| Column                | Type    | Description                                                    |
+| --------------------- | ------- | -------------------------------------------------------------- |
+| data_year             | INTEGER | Year of data (2015-2024)                                       |
+| ori                   | STRING  | Agency identifier (9 characters) - FK to agencies.ori          |
+| pub_agency_name       | STRING  | Official agency name                                           |
+| state_abbr            | STRING  | Two-letter state code                                          |
+| population            | INTEGER | **Population served by agency** (INTEGER - no casting needed!) |
+| population_group_desc | STRING  | FBI's official population category                             |
+| county_name           | STRING  | County where agency is located                                 |
+| agency_type_name      | STRING  | Type of agency (City, County, State, etc.)                     |
+| officer_ct            | INTEGER | Number of sworn officers                                       |
+| civilian_ct           | INTEGER | Number of civilian employees                                   |
 
 **FBI Population Categories** (from \`population_group_desc\`):
+
 - "Cities 1,000,000 and over"
 - "Cities from 500,000 thru 999,999"
 - "Cities from 250,000 thru 499,999"
@@ -162,7 +164,7 @@ data_year: 2023 | ori: AK0010100 | pub_agency_name: Anchorage | state_abbr: AK |
 **CRITICAL: Always join on BOTH \`ori\` AND \`data_year\`:**
 \`\`\`sql
 JOIN law_enforcement_employees le
-  ON o.ori = le.ori AND o.data_year = le.data_year
+ON o.ori = le.ori AND o.data_year = le.data_year
 \`\`\`
 
 This ensures year-specific population matching for accurate per-capita calculations.
