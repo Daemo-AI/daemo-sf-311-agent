@@ -65,10 +65,15 @@ Reference table for law enforcement agencies. **Join on \`ori\` field.**
 | msa_code    | STRING | Metropolitan Statistical Area code                             |
 | is_nibrs    | BOOLEAN | Whether agency participates in NIBRS reporting                |
 
+**Important Notes:**
+- **To filter by state:** Use \`WHERE state_abbr = 'TX'\` (abbreviation) OR \`WHERE state_name = 'Texas'\` (full name)
+- **NEVER use:** \`WHERE state = ...\` (this column does not exist)
+
 **Example rows:**
 \`\`\`
-ori: AL0032500 | state_abbr: AL | agency_name: Department of Conservation, Montgomery | is_nibrs: true
-ori: AL0080800 | state_abbr: AL | agency_name: Hayden Police Department | is_nibrs: true
+ori: AL0032500 | state_abbr: AL | state_name: Alabama | agency_name: Department of Conservation, Montgomery | is_nibrs: true
+ori: AL0080800 | state_abbr: AL | state_name: Alabama | agency_name: Hayden Police Department | is_nibrs: true
+ori: TX0010100 | state_abbr: TX | state_name: Texas | agency_name: Houston Police Department | is_nibrs: true
 \`\`\`
 
 ### \`administrative_segment\`
@@ -249,8 +254,16 @@ WHERE data_year = 2024
 ### Filter by state:
 
 \`\`\`sql
+-- Option 1: Use state abbreviation (recommended)
 JOIN agencies ag ON o.ori = ag.ori
 WHERE ag.state_abbr = 'CA'
+
+-- Option 2: Use full state name
+JOIN agencies ag ON o.ori = ag.ori
+WHERE ag.state_name = 'California'
+
+-- NEVER DO THIS (column does not exist):
+-- WHERE ag.state = 'CA'  ❌ WRONG
 \`\`\`
 
 ### Count distinct incidents:
@@ -473,17 +486,23 @@ await daemo.nibrs_crime_service.executeCustomQuery({
 
 Reference table for law enforcement agencies.
 
-| Column      | Type    | Description                                                    |
-| ----------- | ------- | -------------------------------------------------------------- |
-| ori         | STRING  | Primary key. 9-character agency identifier (e.g., 'CA0010100') |
-| agency_name | STRING  | Full agency name (e.g., 'Los Angeles Police Department')       |
-| city_name   | STRING  | City where agency is located                                   |
-| state_abbr  | STRING  | Two-letter state code (e.g., 'CA')                             |
-| state_code  | STRING  | Two-digit numeric state FIPS code                              |
-| county_code | STRING  | County FIPS code                                               |
-| population  | STRING  | Population served by agency (cast to INT64 for calculations)   |
-| msa_code    | STRING  | Metropolitan Statistical Area code                             |
-| is_nibrs    | BOOLEAN | Whether agency participates in NIBRS reporting                 |
+| Column            | Type    | Description                                                    |
+| ----------------- | ------- | -------------------------------------------------------------- |
+| ori               | STRING  | Primary key. 9-character agency identifier (e.g., 'CA0010100') |
+| agency_name       | STRING  | Full agency name (e.g., 'Los Angeles Police Department')       |
+| agency_type_name  | STRING  | Type of agency (e.g., 'City', 'County', 'State Police')        |
+| city_name         | STRING  | City where agency is located                                   |
+| state_abbr        | STRING  | Two-letter state code (e.g., 'CA', 'TX') - **USE THIS FOR STATE FILTERS** |
+| state_name        | STRING  | Full state name (e.g., 'California', 'Texas')                  |
+| state_code        | STRING  | Two-digit numeric state FIPS code                              |
+| counties          | STRING  | County name(s) where agency operates                           |
+| county_code       | STRING  | County FIPS code                                               |
+| population        | STRING  | Population served by agency (cast to INT64 for calculations)   |
+| latitude          | FLOAT   | Geographic latitude                                            |
+| longitude         | FLOAT   | Geographic longitude                                           |
+| msa_code          | STRING  | Metropolitan Statistical Area code                             |
+| is_nibrs          | BOOLEAN | Whether agency participates in NIBRS reporting                 |
+| nibrs_start_date  | DATE    | Date agency began NIBRS reporting                              |
 
 ### \`administrative_segment\`
 
