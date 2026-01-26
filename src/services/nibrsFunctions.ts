@@ -198,61 +198,24 @@ ${NIBRS_SCHEMA_DOCS}`,
   // =========================================================================
 
   @DaemoFunction({
-    description: `Count offenses with flexible filtering and grouping options.
+    description: `Count total offenses or incidents with filtering and grouping.
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  {dynamic GROUP BY fields based on group_by parameter},
-  COUNT(*) as offense_count,
-  COUNT(DISTINCT CONCAT(o.ori, '-', o.incident_number)) as incident_count
-FROM offense_segment o
-JOIN agencies ag ON o.ori = ag.ori
-WHERE 1=1
-  -- Applied if offense_codes provided: filters to specific crime types
-  AND o.ucr_offense_code IN ('09A', '120', ...)
+Use this to get raw counts (not rates) of crimes. Returns offense_count (total offenses) and incident_count (unique incidents).
 
-  -- Applied if state_abbr provided: filters to specific state
-  AND ag.state_abbr = 'CA'
+Key use cases:
+- "How many [crime type] occurred in [location]?"
+- "Count crimes by state/agency/year"
+- "What are the most common crimes in [location]?"
 
-  -- Applied if ori provided: filters to specific agency
-  AND o.ori = 'CA0190000'
+Important parameters:
+- group_by: Controls aggregation level (['state_abbr'], ['ucr_offense_code'], ['agency_name'], etc.). Results are grouped by these fields.
+- offense_codes: Filter to specific crime types (e.g., ['09A'] for murder, ['120'] for robbery). Omit to get all crimes.
+- state_abbr: Limit to one state (e.g., 'CT', 'CA')
+- ori: Limit to one agency
 
-  -- Applied if start_date provided: filters incidents >= this date
-  AND o.incident_date >= '2024-01-01'
-
-  -- Applied if end_date provided: filters incidents <= this date
-  AND o.incident_date <= '2024-12-31'
-
-  -- Applied if data_year provided: filters to specific year (default 2024)
-  AND o.data_year = 2024
-
-  -- Applied if weapon_involved=true: only includes offenses with weapons
-  AND o.type_weapon_force_involved1 IS NOT NULL
-
-  -- Applied if location_types provided: filters to specific locations
-  AND o.location_type IN ('14', '20', ...)
-
-  -- Applied if bias_motivation provided: filters to hate crimes with specific bias
-  AND o.bias_motivation IN ('15', '21', ...)
-GROUP BY {group_by fields}
-ORDER BY offense_count DESC
-\`\`\`
-
-**How Parameters Influence Results:**
-- offense_codes: Narrows results to specific crime types (e.g., ['09A'] for murder, ['120'] for robbery)
-- state_abbr: Restricts results to a single state
-- ori: Restricts results to a single agency
-- start_date/end_date: Filters to a date range within the data_year
-- data_year: Selects which year's data to analyze (default 2024)
-- weapon_involved: If true, only counts crimes where a weapon was used
-- location_types: Only counts crimes at specific locations (e.g., ['14'] = residence, ['20'] = street)
-- bias_motivation: Only counts hate crimes with specific bias motivations
-- group_by: Determines aggregation level - e.g., ['state_abbr'] for state totals, ['ucr_offense_code'] for crime type breakdown, ['state_abbr', 'ucr_offense_code'] for state+crime combinations
-
-**Example Usage:**
-- Count all homicides by state: offense_codes=['09A'], group_by=['state_abbr']
-- Count weapon-involved robberies in CA: offense_codes=['120'], state_abbr='CA', weapon_involved=true`,
+DO NOT use this for:
+- Per-capita rates (use getOffenseRates instead)
+- Ranking/sorting agencies by crime (use rankAgenciesByCrime instead)`,
     tags: ["nibrs", "offenses", "counts", "aggregation"],
     category: "NIBRS - Core Aggregation",
     inputSchema: GetOffenseCountsInput,
@@ -358,39 +321,22 @@ ORDER BY offense_count DESC
   @DaemoFunction({
     description: `Calculate per-capita crime rates (offenses per 100,000 population).
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  {group_by fields: ag.state_abbr OR ag.agency_name OR region fields},
-  COUNT(*) as offense_count,
-  SUM(le.population) as total_population,
-  ROUND((COUNT(*) * 100000.0) / NULLIF(SUM(le.population), 0), 2) as rate_per_100k
-FROM offense_segment o
-JOIN law_enforcement_employees le
-  ON o.ori = le.ori AND o.data_year = le.data_year
-JOIN agencies ag ON o.ori = ag.ori
-WHERE o.data_year <= 2024
-  AND le.population IS NOT NULL
-  -- Applied if offense_codes provided
-  AND o.ucr_offense_code IN ('09A', '120', ...)
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if min_population provided: only includes cities with population >= this value
-  AND le.population >= 100000
-GROUP BY {group_by fields}
-ORDER BY rate_per_100k DESC
-\`\`\`
+Use this for fair comparisons between places of different sizes. Returns rate_per_100k, offense_count, and total_population.
 
-**How Parameters Influence Results:**
-- group_by: 'state' aggregates to state level, 'agency' shows city-level rates, 'region' for regional aggregation
-- min_population: Filters to cities with population >= this value (e.g., 100000 for cities over 100k). Essential for fair comparisons - comparing rates only among similar-sized cities.
-- offense_codes: Calculates rates for specific crimes instead of total crime
-- state_abbr: Restricts to a single state
-- data_year: Must be 2024 or earlier for valid population data
+Key use cases:
+- "Which [states/cities] have the highest [crime type] rate?"
+- "Compare crime rates between [location A] and [location B]"
+- "Rank locations by crime rate"
 
-**Example Usage:**
-- Find states with highest violent crime rates: offense_codes=['09A','11A','120','13A'], group_by='state'
-- Compare large cities: group_by='agency', min_population=500000`,
+Important parameters:
+- group_by: REQUIRED. Set to 'state' for state-level rates, 'agency' for city-level rates, or 'region' for regional rates.
+- min_population: Filter to cities with population >= this value (e.g., 100000). Use this to compare only similar-sized cities.
+- offense_codes: Calculate rates for specific crimes (e.g., ['09A'] for murder). Omit for total crime rate.
+- state_abbr: Limit to one state
+
+DO NOT use this for:
+- Raw counts without population adjustment (use getOffenseCounts instead)
+- Ranking agencies (use rankAgenciesByCrime instead which is optimized for ranking)`,
     tags: ["nibrs", "rates", "per-capita", "population"],
     category: "NIBRS - Core Aggregation",
     inputSchema: GetOffenseRatesInput,
@@ -461,52 +407,24 @@ ORDER BY rate_per_100k DESC
   }
 
   @DaemoFunction({
-    description: `Get detailed information about specific incidents, including date, location, victim/offender counts, and clearance status.
+    description: `Get detailed information about individual incidents (not aggregated statistics).
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  a.incident_number,
-  a.ori,
-  ag.agency_name,
-  ag.state_abbr,
-  a.incident_date,
-  a.incident_date_hour,
-  a.total_offense_segments,
-  a.total_victim_segments,
-  a.total_offender_segments,
-  a.total_arrestee_segments,
-  a.cleared_exceptionally
-FROM administrative_segment a
-JOIN agencies ag ON a.ori = ag.ori
-WHERE a.data_year = 2024
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if ori provided
-  AND a.ori = 'CA0190000'
-  -- Applied if min_victims provided: only returns incidents with >= this many victims
-  -- Useful for finding mass casualty events (e.g., min_victims=4 for mass shootings)
-  AND a.total_victim_segments >= 4
-  -- Applied if min_offenses provided
-  AND a.total_offense_segments >= 2
-  -- Applied if offense_codes provided: only returns incidents containing these offense types
-  AND EXISTS (
-    SELECT 1 FROM offense_segment o
-    WHERE o.ori = a.ori AND o.incident_number = a.incident_number
-    AND o.ucr_offense_code IN ('09A', '120', ...)
-  )
-ORDER BY a.total_victim_segments DESC, a.incident_date DESC
-\`\`\`
+Returns incident-level details: incident_number, date, time, victim/offender/arrestee counts, and clearance status.
 
-**How Parameters Influence Results:**
-- min_victims: Essential for finding mass casualty events. Set to 4+ for mass shootings/violence.
-- min_offenses: Finds complex incidents with multiple offense types
-- offense_codes: Only returns incidents containing at least one of these offense types
+Key use cases:
+- "Show me specific incidents with [criteria]"
+- "Find mass casualty events" (use min_victims parameter)
+- "Get details about complex crimes" (use min_offenses parameter)
+
+Important parameters:
+- min_victims: Find incidents with >= N victims (e.g., 4 for mass casualty events)
+- min_offenses: Find complex incidents with >= N offense types
+- offense_codes: Only incidents containing at least one of these crime types
 - state_abbr/ori: Geographic filtering
-- data_year: Which year to search
 
-**Example Usage:**
-- Find mass shooting incidents: min_victims=4, offense_codes=['09A','09B','13A']
+DO NOT use this for:
+- Counting or aggregating crimes (use getOffenseCounts instead)
+- Getting statistics about crime trends (use other aggregation functions)
 - Find complex crime incidents: min_offenses=3`,
     tags: ["nibrs", "incidents", "details", "administrative"],
     category: "NIBRS - Core Aggregation",
@@ -571,41 +489,19 @@ ORDER BY a.total_victim_segments DESC, a.incident_date DESC
   }
 
   @DaemoFunction({
-    description: `Calculate clearance rates (percentage of incidents resulting in arrests).
+    description: `Calculate clearance/arrest rates (% of incidents resulting in arrests).
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  {group_by fields: ag.state_abbr OR ag.agency_name OR o.ucr_offense_code},
-  COUNT(*) as total_incidents,
-  SUM(CASE WHEN a.total_arrestee_segments > 0 THEN 1 ELSE 0 END) as incidents_with_arrests,
-  ROUND(100.0 * SUM(CASE WHEN a.total_arrestee_segments > 0 THEN 1 ELSE 0 END) / COUNT(*), 2) as clearance_rate_pct
-FROM administrative_segment a
-JOIN agencies ag ON a.ori = ag.ori
-LEFT JOIN offense_segment o
-  ON a.ori = o.ori AND a.incident_number = o.incident_number
-WHERE a.data_year = 2024
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if ori provided
-  AND a.ori = 'CA0190000'
-  -- Applied if offense_codes provided
-  AND o.ucr_offense_code IN ('09A', '120', ...)
-GROUP BY {group_by fields}
-ORDER BY clearance_rate_pct DESC
-\`\`\`
+Returns clearance_rate_pct, total_incidents, and incidents_with_arrests. Higher clearance rates = better law enforcement effectiveness.
 
-**How Parameters Influence Results:**
-- group_by: 'state' for state-level clearance rates, 'agency' for agency-level, 'offense_code' for crime type
-- offense_codes: Calculate clearance rates for specific crime types
-- state_abbr/ori: Geographic filtering
-- data_year: Which year to analyze
+Key use cases:
+- "What percentage of [crime type] cases result in arrests?"
+- "Compare clearance rates between states/agencies"
+- "How effective is [agency] at solving crimes?"
 
-**Note:** Clearance rate = % of incidents with at least one arrest. Higher rates indicate better law enforcement effectiveness.
-
-**Example Usage:**
-- Compare murder clearance rates by state: offense_codes=['09A'], group_by='state'
-- Check agency's clearance performance: ori='CA0190000', group_by='offense_code'`,
+Important parameters:
+- group_by: REQUIRED. Use 'state' for state-level rates, 'agency' for agency-level, or 'offense_code' for crime type breakdown
+- offense_codes: Calculate rates for specific crime types (e.g., ['09A'] for murder clearance)
+- state_abbr/ori: Geographic filtering`,
     tags: ["nibrs", "clearance", "arrests", "effectiveness"],
     category: "NIBRS - Core Aggregation",
     inputSchema: GetClearanceStatsInput,
@@ -668,45 +564,21 @@ ORDER BY clearance_rate_pct DESC
   }
 
   @DaemoFunction({
-    description: `Get a list of law enforcement agencies with population data and metadata.
+    description: `Get list of agencies with population and metadata (not crime statistics).
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  ag.ori,
-  ag.agency_name,
-  ag.state_abbr,
-  ag.state_name,
-  ag.counties,
-  ag.agency_type_name,
-  le.population,
-  le.population_group_desc,
-  le.officer_ct,
-  le.total_pe_ct
-FROM agencies ag
-JOIN law_enforcement_employees le
-  ON ag.ori = le.ori AND le.data_year = 2024
-WHERE le.population IS NOT NULL
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if min_population provided: only returns agencies with population >= this value
-  AND le.population >= 100000
-  -- Applied if max_population provided: only returns agencies with population <= this value
-  AND le.population <= 500000
-  -- Applied if agency_type provided: filters to specific agency type
-  AND ag.agency_type_name = 'City'
-ORDER BY le.population DESC
-\`\`\`
+Returns agency details: ori, agency_name, state, population, officer counts, agency type. Does NOT return crime statistics.
 
-**How Parameters Influence Results:**
-- min_population/max_population: Filter to specific population ranges (e.g., 100000-500000 for mid-sized cities)
-- state_abbr: Restrict to single state
+Key use cases:
+- "List all agencies in [state]"
+- "Find agencies with population between X and Y"
+- "What agencies are in [location]?"
+
+Important parameters:
+- state_abbr: Filter to one state
+- min_population/max_population: Filter by population range
 - agency_type: Filter by type ('City', 'County', 'State Police', etc.)
-- data_year: Which year's population data to use
 
-**Example Usage:**
-- Find large cities in California: state_abbr='CA', min_population=500000
-- Find all county sheriffs in Texas: state_abbr='TX', agency_type='County'`,
+DO NOT use this for crime statistics - use other functions like getOffenseCounts or rankAgenciesByCrime instead.`,
     tags: ["nibrs", "agencies", "population", "metadata"],
     category: "NIBRS - Core Aggregation",
     inputSchema: GetAgencyListInput,
@@ -764,38 +636,18 @@ ORDER BY le.population DESC
   // =========================================================================
 
   @DaemoFunction({
-    description: `Analyze crime patterns by hour of day (0-23).
+    description: `Analyze crime patterns by hour of day.
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  a.incident_date_hour as hour_of_day,
-  COUNT(*) as offense_count,
-  ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 2) as pct_of_total
-FROM administrative_segment a
-JOIN agencies ag ON a.ori = ag.ori
-LEFT JOIN offense_segment o
-  ON a.ori = o.ori AND a.incident_number = o.incident_number
-WHERE a.data_year = 2024
-  AND a.incident_date_hour IS NOT NULL
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if offense_codes provided
-  AND o.ucr_offense_code IN ('09A', '120', ...)
-GROUP BY a.incident_date_hour
-ORDER BY a.incident_date_hour
-\`\`\`
+Returns 24 rows (hours 0-23) with offense_count and pct_of_total for each hour.
 
-**How Parameters Influence Results:**
-- offense_codes: Analyze time patterns for specific crime types (e.g., ['120'] for robbery time patterns)
-- state_abbr: Restrict to single state
-- data_year: Which year to analyze
+Key use cases:
+- "What time of day do [crime type] occur?"
+- "When are crimes most common?"
+- "Peak hours for [crime]"
 
-**Returns:** 24 rows (hours 0-23) with offense counts and percentage of total
-
-**Example Usage:**
-- When do burglaries occur?: offense_codes=['220']
-- Peak hours for violent crime: offense_codes=['09A','11A','120','13A']`,
+Important parameters:
+- offense_codes: Analyze specific crime types (e.g., ['220'] for burglary). Omit for all crimes.
+- state_abbr: Limit to one state`,
     tags: ["nibrs", "temporal", "time", "hour"],
     category: "NIBRS - Temporal Analysis",
     inputSchema: GetOffensesByTimeOfDayInput,
@@ -841,45 +693,18 @@ ORDER BY a.incident_date_hour
   }
 
   @DaemoFunction({
-    description: `Analyze crime patterns by day of week (1=Sunday through 7=Saturday).
+    description: `Analyze crime patterns by day of week.
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  EXTRACT(DAYOFWEEK FROM a.incident_date) as day_of_week,
-  CASE EXTRACT(DAYOFWEEK FROM a.incident_date)
-    WHEN 1 THEN 'Sunday'
-    WHEN 2 THEN 'Monday'
-    WHEN 3 THEN 'Tuesday'
-    WHEN 4 THEN 'Wednesday'
-    WHEN 5 THEN 'Thursday'
-    WHEN 6 THEN 'Friday'
-    WHEN 7 THEN 'Saturday'
-  END as day_name,
-  COUNT(*) as offense_count
-FROM administrative_segment a
-JOIN agencies ag ON a.ori = ag.ori
-LEFT JOIN offense_segment o
-  ON a.ori = o.ori AND a.incident_number = o.incident_number
-WHERE a.data_year = 2024
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if offense_codes provided
-  AND o.ucr_offense_code IN ('09A', '120', ...)
-GROUP BY day_of_week, day_name
-ORDER BY day_of_week
-\`\`\`
+Returns 7 rows (one per day: Sunday-Saturday) with day_of_week (1-7), day_name, and offense_count.
 
-**How Parameters Influence Results:**
-- offense_codes: Analyze day-of-week patterns for specific crimes
-- state_abbr: Restrict to single state
-- data_year: Which year to analyze
+Key use cases:
+- "Are crimes more common on weekends?"
+- "Which day has the most [crime type]?"
+- "Weekday vs weekend crime patterns"
 
-**Returns:** 7 rows (one per day) with day number (1-7), day name, and offense count
-
-**Example Usage:**
-- Are weekend assaults more common?: offense_codes=['13A','13B']
-- Weekday vs weekend property crime: offense_codes=['220','23D','240']`,
+Important parameters:
+- offense_codes: Analyze specific crime types. Omit for all crimes.
+- state_abbr: Limit to one state`,
     tags: ["nibrs", "temporal", "day", "week"],
     category: "NIBRS - Temporal Analysis",
     inputSchema: GetOffensesByDayOfWeekInput,
@@ -930,37 +755,18 @@ ORDER BY day_of_week
   }
 
   @DaemoFunction({
-    description: `Analyze crime patterns by month (1-12) to identify seasonal trends.
+    description: `Analyze crime patterns by month to identify seasonal trends.
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  EXTRACT(MONTH FROM a.incident_date) as month_num,
-  FORMAT_DATE('%B', a.incident_date) as month_name,
-  COUNT(*) as offense_count
-FROM administrative_segment a
-JOIN agencies ag ON a.ori = ag.ori
-LEFT JOIN offense_segment o
-  ON a.ori = o.ori AND a.incident_number = o.incident_number
-WHERE a.data_year = 2024
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if offense_codes provided
-  AND o.ucr_offense_code IN ('09A', '120', ...)
-GROUP BY month_num, month_name
-ORDER BY month_num
-\`\`\`
+Returns 12 rows (one per month: January-December) with month_num (1-12), month_name, and offense_count.
 
-**How Parameters Influence Results:**
-- offense_codes: Analyze seasonal patterns for specific crimes
-- state_abbr: Restrict to single state
-- data_year: Which year to analyze
+Key use cases:
+- "Are crimes more common in summer or winter?"
+- "Which months have the most [crime type]?"
+- "Seasonal crime patterns"
 
-**Returns:** 12 rows (one per month) with month number (1-12), month name, and offense count
-
-**Example Usage:**
-- Summer vs winter crime patterns: No filters to see overall seasonal trends
-- Holiday theft patterns: offense_codes=['23D','23F','23H'] (larceny/shoplifting)`,
+Important parameters:
+- offense_codes: Analyze specific crime types. Omit for all crimes.
+- state_abbr: Limit to one state`,
     tags: ["nibrs", "temporal", "month", "seasonal"],
     category: "NIBRS - Temporal Analysis",
     inputSchema: GetOffensesByMonthInput,
@@ -1001,57 +807,20 @@ ORDER BY month_num
   }
 
   @DaemoFunction({
-    description: `Analyze year-over-year crime trends with optional per-capita rates.
+    description: `Analyze year-over-year crime trends (is crime going up or down?).
 
-**SQL Query Template:**
-\`\`\`sql
-WITH yearly_counts AS (
-  SELECT
-    o.data_year,
-    COUNT(*) as offense_count,
-    COUNT(DISTINCT CONCAT(o.ori, '-', o.incident_number)) as incident_count,
-    -- If include_rates=true, also calculates:
-    SUM(le.population) as total_population
-  FROM offense_segment o
-  JOIN agencies ag ON o.ori = ag.ori
-  -- If include_rates=true, joins population data:
-  LEFT JOIN law_enforcement_employees le ON o.ori = le.ori AND o.data_year = le.data_year
-  WHERE o.data_year BETWEEN 2020 AND 2024
-    -- Applied if state_abbr provided
-    AND ag.state_abbr = 'CA'
-    -- Applied if ori provided
-    AND o.ori = 'CA0190000'
-    -- Applied if offense_codes provided
-    AND o.ucr_offense_code IN ('09A', '120', ...)
-    -- If include_rates=true, filters out NULL populations:
-    AND le.population IS NOT NULL
-  GROUP BY o.data_year
-)
-SELECT
-  data_year,
-  offense_count,
-  incident_count,
-  -- If include_rates=true, also returns:
-  ROUND((offense_count * 100000.0) / NULLIF(total_population, 0), 2) as rate_per_100k,
-  -- Year-over-year change calculations:
-  LAG(offense_count) OVER (ORDER BY data_year) as prev_year_count,
-  offense_count - LAG(offense_count) OVER (ORDER BY data_year) as yoy_change,
-  ROUND(100.0 * (offense_count - LAG(offense_count) OVER (ORDER BY data_year)) / NULLIF(LAG(offense_count) OVER (ORDER BY data_year), 0), 2) as yoy_pct_change
-FROM yearly_counts
-ORDER BY data_year
-\`\`\`
+Returns one row per year with: offense_count, yoy_change (absolute change from previous year), yoy_pct_change (percent change), and optionally rate_per_100k if include_rates=true.
 
-**How Parameters Influence Results:**
-- start_year/end_year: Define the time range (default 2020-2024)
-- include_rates: If true, calculates per-capita rates in addition to raw counts. Essential for meaningful comparisons when population changes over time.
+Key use cases:
+- "Is crime increasing or decreasing in [location]?"
+- "Show me crime trends from [year] to [year]"
+- "Has [crime type] gone up over time?"
+
+Important parameters:
+- start_year/end_year: Define time range (default 2020-2024)
+- include_rates: Set to true to get per-capita rates (recommended when population changes over time)
 - offense_codes: Track trends for specific crime types
-- state_abbr/ori: Geographic filtering
-
-**Returns:** One row per year with offense counts, year-over-year changes, and percent changes. If include_rates=true, also includes per-capita rates.
-
-**Example Usage:**
-- Track violent crime trends in California: state_abbr='CA', offense_codes=['09A','11A','120','13A'], include_rates=true
-- Has crime increased in your city?: ori='CA0190000', start_year=2020, end_year=2024`,
+- state_abbr/ori: Geographic filtering`,
     tags: ["nibrs", "temporal", "trends", "year-over-year"],
     category: "NIBRS - Temporal Analysis",
     inputSchema: GetYearOverYearTrendsInput,
@@ -1129,40 +898,19 @@ ORDER BY data_year
   // =========================================================================
 
   @DaemoFunction({
-    description: `Analyze victim demographics (sex, race, age, ethnicity) for individual victims only.
+    description: `Analyze victim demographics (sex, race, age, ethnicity).
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  {group_by fields: sex_of_victim, race_of_victim, age_of_victim, ethnicity},
-  COUNT(*) as victim_count,
-  ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 2) as pct_of_total
-FROM victim_segment v
-JOIN agencies ag ON v.ori = ag.ori
-WHERE v.type_of_victim = 'I'  -- Individual victims only (excludes businesses, society)
-  AND v.data_year = 2024
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if offense_codes provided
-  AND v.ucr_offense_code1 IN ('09A', '120', ...)
-GROUP BY {group_by fields}
-ORDER BY victim_count DESC
-\`\`\`
+Returns victim_count and pct_of_total grouped by demographic field(s). Only includes individual victims (not businesses).
 
-**How Parameters Influence Results:**
-- group_by: REQUIRED - specifies which demographic dimensions to analyze. Options:
-  * ['sex_of_victim'] - Gender breakdown
-  * ['race_of_victim'] - Racial breakdown
-  * ['age_of_victim'] - Age distribution
-  * ['ethnicity'] - Hispanic/Non-Hispanic breakdown
-  * ['sex_of_victim', 'race_of_victim'] - Intersectional analysis
-- offense_codes: Analyze victim demographics for specific crime types (e.g., ['11A'] for rape victims)
-- state_abbr: Restrict to single state
-- data_year: Which year to analyze
+Key use cases:
+- "What are the demographics of [crime type] victims?"
+- "Which age groups are most victimized?"
+- "Victim demographics by race/sex/age"
 
-**Example Usage:**
-- Gender breakdown of assault victims: offense_codes=['13A','13B'], group_by=['sex_of_victim']
-- Racial demographics of homicide victims: offense_codes=['09A'], group_by=['race_of_victim']`,
+Important parameters:
+- group_by: REQUIRED. Choose demographic field(s): ['sex_of_victim'], ['race_of_victim'], ['age_of_victim'], ['ethnicity'], or multiple for crosstab
+- offense_codes: Analyze victims of specific crime types
+- state_abbr: Limit to one state`,
     tags: ["nibrs", "victims", "demographics", "sex", "race", "age"],
     category: "NIBRS - Demographics",
     inputSchema: GetVictimDemographicsInput,
@@ -1219,40 +967,18 @@ ORDER BY victim_count DESC
   @DaemoFunction({
     description: `Analyze arrestee demographics (sex, race, age, ethnicity).
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  {group_by fields: sex_of_arrestee, race_of_arrestee, age_of_arrestee, ethnicity},
-  COUNT(*) as arrestee_count,
-  ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 2) as pct_of_total
-FROM arrestee_segment ar
-JOIN agencies ag ON ar.ori = ag.ori
-WHERE ar.data_year = 2024
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if offense_codes provided
-  AND ar.ucr_arrest_offense_code IN ('09A', '120', ...)
-  -- Applied if juvenile_only=true: only includes arrestees under 18
-  AND SAFE_CAST(ar.age_of_arrestee AS INT64) < 18
-GROUP BY {group_by fields}
-ORDER BY arrestee_count DESC
-\`\`\`
+Returns arrestee_count and pct_of_total grouped by demographic field(s).
 
-**How Parameters Influence Results:**
-- group_by: REQUIRED - specifies which demographic dimensions to analyze. Options:
-  * ['sex_of_arrestee'] - Gender breakdown
-  * ['race_of_arrestee'] - Racial breakdown
-  * ['age_of_arrestee'] - Age distribution
-  * ['ethnicity'] - Hispanic/Non-Hispanic breakdown
-  * Multiple fields for intersectional analysis
-- juvenile_only: If true, only analyzes arrestees under 18 years old
-- offense_codes: Analyze arrestee demographics for specific crime types
-- state_abbr: Restrict to single state
-- data_year: Which year to analyze
+Key use cases:
+- "What are the demographics of people arrested for [crime]?"
+- "Which age groups are most arrested?"
+- "Arrestee demographics by race/sex/age"
 
-**Example Usage:**
-- Gender of drug arrestees: offense_codes=['35A'], group_by=['sex_of_arrestee']
-- Juvenile arrest demographics: juvenile_only=true, group_by=['race_of_arrestee']`,
+Important parameters:
+- group_by: REQUIRED. Choose demographic field(s): ['sex_of_arrestee'], ['race_of_arrestee'], ['age_of_arrestee'], ['ethnicity'], or multiple for crosstab
+- juvenile_only: Set to true to analyze only arrestees under 18
+- offense_codes: Analyze arrestees for specific crime types
+- state_abbr: Limit to one state`,
     tags: ["nibrs", "arrestees", "demographics", "sex", "race", "age"],
     category: "NIBRS - Demographics",
     inputSchema: GetArresteeDemographicsInput,
@@ -1308,43 +1034,18 @@ ORDER BY arrestee_count DESC
   }
 
   @DaemoFunction({
-    description: `Analyze relationships between victims and offenders (e.g., stranger, acquaintance, family member).
+    description: `Analyze victim-offender relationships (stranger, acquaintance, family, etc.).
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  v.victim_relationship_to_offender1 as relationship,
-  COUNT(*) as count,
-  ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 2) as pct_of_total
-FROM victim_segment v
-JOIN agencies ag ON v.ori = ag.ori
-WHERE v.type_of_victim = 'I'
-  AND v.data_year = 2024
-  AND v.victim_relationship_to_offender1 IS NOT NULL
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if offense_codes provided
-  AND v.ucr_offense_code1 IN ('09A', '120', ...)
-GROUP BY relationship
-ORDER BY count DESC
-\`\`\`
+Returns relationship types with count and pct_of_total. Common values: SE (Stranger), AQ (Acquaintance), SP (Spouse), BG (Boyfriend/Girlfriend), OF (Other Family).
 
-**How Parameters Influence Results:**
-- offense_codes: Analyze relationship patterns for specific crime types (e.g., ['11A'] for rape, ['09A'] for homicide)
-- state_abbr: Restrict to single state
-- data_year: Which year to analyze
+Key use cases:
+- "Are [crime type] typically committed by strangers or known persons?"
+- "Domestic violence relationship patterns"
+- "Who commits [crime]?"
 
-**Common Relationship Codes:**
-- SE: Stranger
-- AQ: Acquaintance
-- OF: Other Family Member
-- SP: Spouse
-- CH: Parent
-- BG: Boyfriend/Girlfriend
-
-**Example Usage:**
-- Who commits domestic violence?: offense_codes=['13A','13B'], look for family/spouse relationships
-- Are homicides stranger or acquaintance-based?: offense_codes=['09A']`,
+Important parameters:
+- offense_codes: Analyze relationships for specific crime types
+- state_abbr: Limit to one state`,
     tags: ["nibrs", "victims", "relationships", "offenders"],
     category: "NIBRS - Demographics",
     inputSchema: GetVictimOffenderRelationshipsInput,
@@ -1390,40 +1091,17 @@ ORDER BY count DESC
   }
 
   @DaemoFunction({
-    description: `Analyze types of injuries sustained by victims in violent crimes.
+    description: `Analyze injury types sustained by victims in violent crimes.
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  v.type_of_injury1 as injury_type,
-  COUNT(*) as count
-FROM victim_segment v
-JOIN agencies ag ON v.ori = ag.ori
-WHERE v.type_of_victim = 'I'
-  AND v.data_year = 2024
-  AND v.type_of_injury1 IS NOT NULL
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if offense_codes provided
-  AND v.ucr_offense_code1 IN ('09A', '120', ...)
-GROUP BY injury_type
-ORDER BY count DESC
-\`\`\`
+Returns injury_type and count. Common values: N (None), M (Major - broken bones, internal injuries), S (Severe - loss of consciousness), L (Minor - bruises, scratches).
 
-**How Parameters Influence Results:**
-- offense_codes: Analyze injury patterns for specific crime types (e.g., ['13A'] for aggravated assault)
-- state_abbr: Restrict to single state
-- data_year: Which year to analyze
+Key use cases:
+- "How severe are injuries in [crime type]?"
+- "Injury patterns for [offense]"
 
-**Common Injury Types:**
-- N: None
-- M: Major (broken bones, internal injuries, severe lacerations)
-- S: Severe (loss of consciousness, loss of teeth)
-- L: Apparent Minor (bruises, scratches)
-
-**Example Usage:**
-- Severity of assault injuries: offense_codes=['13A','13B']
-- Injury patterns in domestic violence: offense_codes=['13A'], filter results by relationship`,
+Important parameters:
+- offense_codes: Analyze injuries for specific crime types (e.g., ['13A'] for aggravated assault)
+- state_abbr: Limit to one state`,
     tags: ["nibrs", "victims", "injuries", "violence"],
     category: "NIBRS - Demographics",
     inputSchema: GetInjuryTypesInput,
@@ -1470,43 +1148,18 @@ ORDER BY count DESC
   // =========================================================================
 
   @DaemoFunction({
-    description: `Analyze weapon/force types used in offenses.
+    description: `Analyze weapon/force types used in crimes.
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  o.type_weapon_force_involved1 as weapon_type,
-  COUNT(*) as offense_count,
-  ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 2) as pct_of_total
-FROM offense_segment o
-JOIN agencies ag ON o.ori = ag.ori
-WHERE o.data_year = 2024
-  AND o.type_weapon_force_involved1 IS NOT NULL
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if offense_codes provided
-  AND o.ucr_offense_code IN ('09A', '120', ...)
-GROUP BY weapon_type
-ORDER BY offense_count DESC
-\`\`\`
+Returns weapon_type, offense_count, and pct_of_total. Common values: 11-15 (Firearms), 20 (Knife), 40 (Personal Weapons - hands/fists), 90 (Other).
 
-**How Parameters Influence Results:**
-- offense_codes: Analyze weapon usage for specific crime types (e.g., ['09A'] for homicide weapons, ['120'] for robbery weapons)
-- state_abbr: Restrict to single state
-- data_year: Which year to analyze
+Key use cases:
+- "What weapons are used in [crime type]?"
+- "How often are firearms involved in [offense]?"
+- "Weapon usage patterns"
 
-**Common Weapon Codes:**
-- 11: Firearm (type unknown)
-- 12: Handgun
-- 13: Rifle
-- 14: Shotgun
-- 20: Knife/Cutting Instrument
-- 40: Personal Weapons (hands, fists, feet)
-- 90: Other
-
-**Example Usage:**
-- What weapons are used in robberies?: offense_codes=['120']
-- Firearm involvement in assaults: offense_codes=['13A'], filter results to codes 11-15`,
+Important parameters:
+- offense_codes: Analyze weapons for specific crime types
+- state_abbr: Limit to one state`,
     tags: ["nibrs", "weapons", "firearms", "force"],
     category: "NIBRS - Weapon & Location",
     inputSchema: GetWeaponInvolvementInput,
@@ -1551,39 +1204,16 @@ ORDER BY offense_count DESC
   @DaemoFunction({
     description: `Analyze where crimes occur (location types).
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  o.location_type,
-  COUNT(*) as offense_count,
-  ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 2) as pct_of_total
-FROM offense_segment o
-JOIN agencies ag ON o.ori = ag.ori
-WHERE o.data_year = 2024
-  AND o.location_type IS NOT NULL
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if offense_codes provided
-  AND o.ucr_offense_code IN ('09A', '120', ...)
-GROUP BY location_type
-ORDER BY offense_count DESC
-\`\`\`
+Returns location_type, offense_count, and pct_of_total. Common values: 14 (Residence/Home), 20 (Commercial/Office), 13 (Highway/Road), 25 (Parking Lot).
 
-**How Parameters Influence Results:**
-- offense_codes: Analyze location patterns for specific crime types (e.g., ['220'] for burglary locations, ['23D'] for shoplifting locations)
-- state_abbr: Restrict to single state
-- data_year: Which year to analyze
+Key use cases:
+- "Where do [crime type] occur?"
+- "What locations are most dangerous?"
+- "Crime location patterns"
 
-**Common Location Codes:**
-- 14: Residence/Home
-- 20: Commercial/Office Building
-- 20: Convenience Store
-- 13: Highway/Road/Alley
-- 25: Parking Lot/Garage
-
-**Example Usage:**
-- Where do burglaries occur?: offense_codes=['220']
-- Where are assaults most common?: offense_codes=['13A','13B']`,
+Important parameters:
+- offense_codes: Analyze locations for specific crime types
+- state_abbr: Limit to one state`,
     tags: ["nibrs", "location", "place", "where"],
     category: "NIBRS - Weapon & Location",
     inputSchema: GetLocationTypesInput,
@@ -1630,48 +1260,25 @@ ORDER BY offense_count DESC
   // =========================================================================
 
   @DaemoFunction({
-    description: `Rank cities/agencies by crime metrics (total count or per-capita rate).
+    description: `Rank/sort agencies (cities) by crime statistics. Returns a sorted list of agencies with their crime metrics.
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  ag.agency_name,
-  ag.state_abbr,
-  le.population,
-  COUNT(*) as offense_count,
-  ROUND((COUNT(*) * 100000.0) / NULLIF(le.population, 0), 2) as rate_per_100k
-FROM offense_segment o
-JOIN law_enforcement_employees le
-  ON o.ori = le.ori AND o.data_year = le.data_year
-JOIN agencies ag ON o.ori = ag.ori
-WHERE o.data_year <= 2024
-  AND le.population IS NOT NULL
-  -- Applied if state_abbr provided: only ranks agencies within this state
-  AND ag.state_abbr = 'CA'
-  -- Applied if min_population provided: only ranks cities with population >= this value
-  -- This is ESSENTIAL for fair comparisons - don't compare NYC to a small town
-  AND le.population >= 100000
-  -- Applied if offense_codes provided: ranks by specific crime types instead of total crime
-  AND o.ucr_offense_code IN ('09A', '120', ...)
-GROUP BY ag.agency_name, ag.state_abbr, le.population
--- Order depends on metric parameter:
-ORDER BY rate_per_100k DESC  -- if metric='rate_per_100k' (RECOMMENDED)
--- OR
-ORDER BY offense_count DESC  -- if metric='total_count'
-LIMIT {limit}
-\`\`\`
+**THIS IS THE FUNCTION TO USE for queries like:**
+- "Which cities in [state] have the most crime?"
+- "Sort agencies by [crime type] in [state]"
+- "Rank cities by incident count in [location]"
+- "Show me the top 10 agencies for [crime]"
 
-**How Parameters Influence Results:**
-- metric: 'rate_per_100k' (RECOMMENDED) ranks by per-capita rate for fair comparison. 'total_count' ranks by absolute numbers (biased toward large cities).
-- min_population: CRITICAL for fair comparisons. Set to 100000+ to compare only similar-sized cities. Without this, small towns can have misleading rates.
-- offense_codes: Rank by specific crime types (e.g., ['09A'] for most dangerous cities by homicide rate)
-- state_abbr: Rank within a single state (e.g., find most dangerous city in California)
-- limit: Number of top cities to return (default 20)
+Returns: agency_name, state_abbr, population, offense_count, rate_per_100k (sorted by your chosen metric)
 
-**Example Usage:**
-- Most dangerous large cities: metric='rate_per_100k', min_population=250000, offense_codes=['09A','11A','120','13A']
-- Top robbery cities in Texas: state_abbr='TX', offense_codes=['120'], metric='rate_per_100k'`,
-    tags: ["nibrs", "ranking", "comparison", "top"],
+Important parameters:
+- metric: Use 'total_count' to rank by absolute crime count, or 'rate_per_100k' for per-capita rate
+- state_abbr: REQUIRED to rank within a state (e.g., 'CT', 'CA')
+- offense_codes: Rank by specific crime types (e.g., ['120'] for robbery). Omit for total crime.
+- min_population: Filter to cities with population >= this value
+- limit: Number of top agencies to return (default 20)
+
+Example: To rank CT agencies by incident count, use: {state_abbr: 'CT', metric: 'total_count'}`,
+    tags: ["nibrs", "ranking", "comparison", "top", "sort"],
     category: "NIBRS - Comparison & Ranking",
     inputSchema: RankAgenciesByCrimeInput,
     outputSchema: RankAgenciesByCrimeOutput,
@@ -1730,48 +1337,18 @@ LIMIT {limit}
   }
 
   @DaemoFunction({
-    description: `Compare specific agencies side-by-side across multiple crime categories.
+    description: `Compare specific agencies side-by-side across crime categories.
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  ag.agency_name,
-  ag.state_abbr,
-  le.population,
-  COUNT(*) as total_offenses,
-  ROUND((COUNT(*) * 100000.0) / NULLIF(le.population, 0), 2) as rate_per_100k,
-  SUM(CASE WHEN o.ucr_offense_code IN ('09A', '09B') THEN 1 ELSE 0 END) as homicides,
-  SUM(CASE WHEN o.ucr_offense_code = '120' THEN 1 ELSE 0 END) as robberies,
-  SUM(CASE WHEN o.ucr_offense_code IN ('13A', '13B') THEN 1 ELSE 0 END) as assaults,
-  SUM(CASE WHEN o.ucr_offense_code = '220' THEN 1 ELSE 0 END) as burglaries,
-  SUM(CASE WHEN o.ucr_offense_code = '240' THEN 1 ELSE 0 END) as vehicle_thefts
-FROM offense_segment o
-JOIN law_enforcement_employees le
-  ON o.ori = le.ori AND o.data_year = le.data_year
-JOIN agencies ag ON o.ori = ag.ori
-WHERE o.data_year <= 2024
-  AND le.population IS NOT NULL
-  -- Applied based on ori_list parameter: only includes specified agencies
-  AND o.ori IN UNNEST(['CA0190000', 'NY0030000', ...])
-GROUP BY ag.agency_name, ag.state_abbr, le.population
-ORDER BY le.population DESC
-\`\`\`
+Returns one row per agency with: total_offenses, rate_per_100k, and breakdowns for homicides, robberies, assaults, burglaries, vehicle_thefts.
 
-**How Parameters Influence Results:**
-- ori_list: REQUIRED - List of ORI codes to compare. Use searchAgencies function first to find ORI codes for cities of interest.
-- data_year: Which year to compare (default 2024)
+Key use cases:
+- "Compare crime statistics between [city A] and [city B]"
+- "Side-by-side comparison of [agencies]"
 
-**Returns:** One row per agency with breakdowns for:
-- Total offenses and rate per 100k
-- Homicides (09A, 09B)
-- Robberies (120)
-- Assaults (13A, 13B)
-- Burglaries (220)
-- Vehicle thefts (240)
+Important parameters:
+- ori_list: REQUIRED. List of agency ORI codes to compare. Use searchAgencies first to find ORI codes.
 
-**Example Usage:**
-1. First: searchAgencies with search_term='Los Angeles' to get ORI code
-2. Then: compareAgencies with ori_list=['CA0190000', 'NY0030000', 'IL0130200'] to compare LA, NYC, Chicago`,
+Note: Use searchAgencies function first to find ORI codes for cities you want to compare.`,
     tags: ["nibrs", "comparison", "agencies", "cities"],
     category: "NIBRS - Comparison & Ranking",
     inputSchema: CompareAgenciesInput,
@@ -1813,54 +1390,20 @@ ORDER BY le.population DESC
   }
 
   @DaemoFunction({
-    description: `Compare an agency to similar-sized peer agencies (by population).
+    description: `Compare an agency to similar-sized peer agencies (benchmark against peers).
 
-**SQL Query Template:**
-\`\`\`sql
-WITH target_agency AS (
-  SELECT ori, agency_name, state_abbr, population
-  FROM law_enforcement_employees
-  WHERE ori = 'CA0190000' AND data_year = 2024
-),
-peer_agencies AS (
-  SELECT le.ori, ag.agency_name, ag.state_abbr, le.population
-  FROM law_enforcement_employees le
-  JOIN agencies ag ON le.ori = ag.ori
-  CROSS JOIN target_agency ta
-  WHERE le.data_year = 2024
-    -- Population range based on population_range_pct parameter (default ±20%)
-    AND le.population BETWEEN
-      ta.population * (1 - 0.20) AND
-      ta.population * (1 + 0.20)
-    AND le.ori != ta.ori  -- Exclude target agency itself
-)
-SELECT
-  ag.agency_name,
-  ag.state_abbr,
-  le.population,
-  COUNT(*) as offense_count,
-  ROUND((COUNT(*) * 100000.0) / NULLIF(le.population, 0), 2) as rate_per_100k,
-  CASE WHEN ag.ori = (SELECT ori FROM target_agency) THEN 'TARGET' ELSE 'PEER' END as agency_type
-FROM offense_segment o
-JOIN law_enforcement_employees le ON o.ori = le.ori AND o.data_year = le.data_year
-JOIN agencies ag ON o.ori = ag.ori
-WHERE o.data_year <= 2024
-  AND (ag.ori IN (SELECT ori FROM peer_agencies) OR ag.ori = (SELECT ori FROM target_agency))
-GROUP BY ag.agency_name, ag.state_abbr, le.population, ag.ori
-ORDER BY rate_per_100k
-\`\`\`
+Finds agencies with similar population (±20% by default) and returns crime rates for target and all peers. Each agency marked as 'TARGET' or 'PEER'.
 
-**How Parameters Influence Results:**
-- ori: REQUIRED - Target agency ORI code to compare. Use searchAgencies to find ORI code.
-- population_range_pct: Defines peer group. Default 20 means ±20% population (e.g., if target has 500k population, peers are 400k-600k). Larger values include more peers but less similar cities.
-- data_year: Which year to compare (default 2024)
+Key use cases:
+- "How does [city] compare to similar-sized cities?"
+- "Benchmark [city] against peer agencies"
+- "Is [city] safer than similar cities?"
 
-**Returns:** All peer agencies plus the target agency, with each marked as 'TARGET' or 'PEER', sorted by crime rate.
+Important parameters:
+- ori: REQUIRED. Target agency ORI code. Use searchAgencies to find it.
+- population_range_pct: Defines peer group (default 20 = ±20% population). Smaller = more similar peers.
 
-**Example Usage:**
-- How does Austin compare to similar-sized cities?: First use searchAgencies to find Austin's ORI, then getPeerComparison
-- Narrow peer group: population_range_pct=10 for ±10% (more similar cities)
-- Wide peer group: population_range_pct=30 for ±30% (more comparison points)`,
+Note: Use searchAgencies function first to find the ORI code for the city you want to analyze.`,
     tags: ["nibrs", "comparison", "peers", "benchmark"],
     category: "NIBRS - Comparison & Ranking",
     inputSchema: GetPeerComparisonInput,
@@ -1917,39 +1460,18 @@ ORDER BY rate_per_100k
   // =========================================================================
 
   @DaemoFunction({
-    description: `Analyze hate crimes by bias motivation (racial, religious, sexual orientation, etc.).
+    description: `Analyze hate crimes by bias motivation type.
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  o.bias_motivation,
-  COUNT(*) as offense_count,
-  ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 2) as pct_of_total
-FROM offense_segment o
-JOIN agencies ag ON o.ori = ag.ori
-WHERE o.data_year = 2024
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if exclude_no_bias=true (default): excludes code '88' (no bias/not a hate crime)
-  AND o.bias_motivation != '88'
-GROUP BY bias_motivation
-ORDER BY offense_count DESC
-\`\`\`
+Returns bias_motivation code, offense_count, and pct_of_total. Common bias types: 11-15 (racial), 21-29 (religious), 41-45 (sexual orientation/gender identity). Excludes non-hate crimes by default.
 
-**How Parameters Influence Results:**
-- exclude_no_bias: If true (default), only shows actual hate crimes. If false, includes all offenses including non-hate crimes (bias code '88').
-- state_abbr: Restrict to single state
-- data_year: Which year to analyze
+Key use cases:
+- "What types of hate crimes are most common?"
+- "Hate crime statistics by bias type"
+- "Racial vs religious hate crimes"
 
-**Common Bias Codes:**
-- 11-15: Anti-Black, Anti-White, Anti-Hispanic, Anti-Asian, etc. (racial)
-- 21-29: Anti-Jewish, Anti-Catholic, Anti-Islamic, etc. (religious)
-- 41-45: Anti-Gay Male, Anti-Lesbian, Anti-Transgender, etc. (sexual orientation/gender identity)
-- 88: None (not a hate crime) - excluded by default
-
-**Example Usage:**
-- What types of hate crimes are most common?: exclude_no_bias=true
-- Racial vs religious hate crimes: exclude_no_bias=true, then filter results by code ranges`,
+Important parameters:
+- exclude_no_bias: Default true (only hate crimes). Set to false to include all crimes.
+- state_abbr: Limit to one state`,
     tags: ["nibrs", "hate-crimes", "bias", "discrimination"],
     category: "NIBRS - Specialized",
     inputSchema: GetHateCrimeStatsInput,
@@ -1990,36 +1512,18 @@ ORDER BY offense_count DESC
   @DaemoFunction({
     description: `Analyze arrest patterns and statistics.
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  {group_by fields: ucr_arrest_offense_code, state_abbr, type_of_arrest, etc.},
-  COUNT(*) as arrest_count,
-  COUNT(DISTINCT ar.ori || '-' || ar.incident_number) as incidents_with_arrests,
-  ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 2) as pct_of_total
-FROM arrestee_segment ar
-JOIN agencies ag ON ar.ori = ag.ori
-WHERE ar.data_year = 2024
-  -- Applied if state_abbr provided
-  AND ag.state_abbr = 'CA'
-  -- Applied if offense_codes provided
-  AND ar.ucr_arrest_offense_code IN ('09A', '120', ...)
-  -- Applied if arrest_type provided: filters to specific arrest type
-  AND ar.type_of_arrest = 'O'  -- 'O'=On-View, 'S'=Summoned/Cited, 'T'=Taken into Custody
-GROUP BY {group_by fields}
-ORDER BY arrest_count DESC
-\`\`\`
+Returns arrest_count, incidents_with_arrests, and pct_of_total grouped by specified fields.
 
-**How Parameters Influence Results:**
-- group_by: Optional - fields to group by (e.g., ['ucr_arrest_offense_code'] for breakdown by crime type, ['state_abbr'] for state comparison)
-- arrest_type: Optional - filter to specific arrest type: 'O' (On-View), 'S' (Summoned/Cited), 'T' (Taken into Custody)
+Key use cases:
+- "What crimes have the most arrests?"
+- "Arrest statistics by [crime type/location]"
+- "How many arrests for [offense]?"
+
+Important parameters:
+- group_by: Fields to group by (e.g., ['ucr_arrest_offense_code'] for crime type breakdown, ['type_of_arrest'] for arrest type)
+- arrest_type: Filter to specific type: 'O' (On-View), 'S' (Summoned/Cited), 'T' (Taken into Custody)
 - offense_codes: Filter to arrests for specific crime types
-- state_abbr: Restrict to single state
-- data_year: Which year to analyze
-
-**Example Usage:**
-- What crimes have most arrests?: group_by=['ucr_arrest_offense_code']
-- How many arrests are on-view vs summoned?: group_by=['type_of_arrest']`,
+- state_abbr: Limit to one state`,
     tags: ["nibrs", "arrests", "arrestees", "enforcement"],
     category: "NIBRS - Specialized",
     inputSchema: GetArrestStatsInput,
@@ -2089,47 +1593,23 @@ ORDER BY arrest_count DESC
   // =========================================================================
 
   @DaemoFunction({
-    description: `Search for agencies by name, county, or state. Use this to find ORI codes for specific cities/agencies.
+    description: `Search for agencies by name to find their ORI codes.
 
-**SQL Query Template:**
-\`\`\`sql
-SELECT
-  ori,
-  agency_name,
-  state_abbr,
-  state_name,
-  counties,
-  agency_type_name
-FROM agencies
-WHERE (
-  LOWER(agency_name) LIKE '%search_term%'
-  OR LOWER(counties) LIKE '%search_term%'
-  OR LOWER(state_name) LIKE '%search_term%'
-)
-  -- Applied if state_abbr provided: only search within this state
-  AND state_abbr = 'CA'
-ORDER BY
-  -- Prioritizes exact matches, then prefix matches, then any match
-  CASE
-    WHEN LOWER(agency_name) = LOWER(search_term) THEN 1
-    WHEN LOWER(agency_name) LIKE 'search_term%' THEN 2
-    ELSE 3
-  END,
-  agency_name
-LIMIT {limit}
-\`\`\`
+**USE THIS FIRST** when you need to find an agency's ORI code for other functions (compareAgencies, getPeerComparison, etc.).
 
-**How Parameters Influence Results:**
-- search_term: REQUIRED - Searches in agency name, county name, and state name. Case-insensitive. Use partial matches (e.g., 'Los Angeles' will find 'Los Angeles Police Dept')
-- state_abbr: Optional - Restrict search to a single state
-- limit: Maximum results to return (default 20)
+Returns: ori (agency code), agency_name, state_abbr, counties, agency_type_name
 
-**Returns:** List of matching agencies with ORI codes. Use the ORI code with other functions like compareAgencies, getPeerComparison, etc.
+Key use cases:
+- "Find the ORI code for [city] police department"
+- "What's the agency code for [city]?"
+- "Search for agencies in [location]"
 
-**Example Usage:**
-- Find NYPD's ORI code: search_term='New York Police'
-- Find all agencies in Los Angeles County: search_term='Los Angeles', state_abbr='CA'
-- Find Chicago PD: search_term='Chicago', state_abbr='IL'`,
+Important parameters:
+- search_term: REQUIRED. City or agency name to search (e.g., 'Los Angeles', 'Chicago Police'). Case-insensitive, partial matches work.
+- state_abbr: Limit search to one state
+- limit: Max results (default 20)
+
+Example: To compare Los Angeles and New York, first use searchAgencies with search_term='Los Angeles' to get ORI, then search_term='New York' to get ORI, then use compareAgencies with both ORI codes.`,
     tags: ["nibrs", "agencies", "search", "find", "ori"],
     category: "NIBRS - Helper",
     inputSchema: SearchAgenciesInput,
